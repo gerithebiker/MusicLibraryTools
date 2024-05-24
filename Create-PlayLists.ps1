@@ -4,6 +4,16 @@
 
 .DESCRIPTION
   This script is intended to create m3u playlist files in each of the directories where there is at least one music file. It does not expect any arguments. If non give, it will use the current directory as a starting point. If there is already an m3u file in a folder, the it will skip creating one, unless the "force" switch is enable. If both "force" and "delete" is enabled, then before creating one, it will delete the existing m3u files. "delete" works only if "force" is enabled.
+  
+  If you are lazy like me, and do not like to type in the full command name, then put create a permanent alias. You can find your profile file typing in the following line in a PowerShell terminal:
+  C:\> $PROFILE
+  The anser will be something like:
+  C:\Users\YourUserID\OneDrive\Documents\WindowsPowerShell\Microsoft.PowerShell_profile.ps1
+  
+  Open the file in an editor (like Notepad, Notepad++), and add the following line:
+  Set-Alias -name 'cpl' -value 'C:\The\Pathe\Where\The\Script\Is\Create-PlayLists.ps1'
+  
+  Next time you open a PowerShell terminal, you can call simply 'cpl C:\MyMusicLibrary'
 
 .PARAMETER startPath
 	The top folder where the script should start for music files. If non give, it will use the current directory.
