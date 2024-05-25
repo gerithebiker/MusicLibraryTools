@@ -19,10 +19,10 @@
   None
 
 .NOTES
-  Version:        0.0
+  Version:        0.1
   Author:         Geri
-  Creation Date:  2024.05.23
-  Purpose/Change: Initial script development
+  Creation Date:  2024.05.24
+  Purpose/Change: First working version
 
   
 
@@ -35,8 +35,9 @@
 
     [CmdletBinding()] # For using the common parameters
     Param (
-		[string]$DirName,
-		[string]$Target
+		[Parameter(Mandatory=$true)]
+		[string]$targetDirectory,
+		[string]$workingDir
 	)
 
 
@@ -97,16 +98,57 @@ Function <FunctionName>{
 
 #-----------------------------------------------------------[Execution]------------------------------------------------------------
 
-$targetArray = $Target.split("\")
-$targetArray
-$nameArray = $DirName.split("\")
-write-host "---"
-$nameArray
-$in = Read-Host "Itt> "
+# 
+Set-Location $workingDir
+$targetArray = $targetDirectory.split("\")
+$workingArray = $workingDir.split("\")
+# $targetArray
 
-#This message displayed only if the script called with the "-Verbose" switch
-Write-Verbose -Message "<Message comes here.>"
+$targetDirectory 
+#$workingDir
+Write-Host "devider....."
+#$nameArray = $workingDir.split("\")
+#$myLength = $targetArray.length - 2
+$linkName = $targetArray[$targetArray.length - 2]
+"workingDir: "
+$workingDir
+$targetArray[0]
+#$nameArray
+#Start-Sleep -s 10
 
+if($workingArray[0] -ne $targetArray[0]){
+	Write-Output "Must be on the same drive. Exiting..."
+	Start-Sleep -s 10
+	exit
+} else {
+	# 
+	$counter = 0
+	$relativeLink = ""
+    #$firstHalf = ""
+	for($i=1; $i -lt ($targetArray.length - 2); $i++){
+		if($targetArray[$i] -eq $workingArray[$i]){
+			$counter++
+		} else {
+            for($j=$counter + 1; $j -lt ($workingArray.length - 1); $j++){
+                $relativeLink = $relativeLink + "..\"
+            }
+            $relativeLink = $relativeLink -replace ".$"
+            for($j=$counter + 1; $j -lt ($targetArray.length - 1); $j++){
+                $relativeLink = $relativeLink + "\" + $targetArray[$j]
+            }
+		}
+	}
+	Write-Host "Creating Link..." $linkName"," $relativeLink
+    #$relativeLink
+	New-Item -ItemType SymbolicLink -Path $linkName -Target $relativeLink
+	#Start-Sleep -s 10
+}
 
+# Confirm creation
+if (Test-Path $workingDir) {
+    Write-Output "Symbolic link created successfully."
+} else {
+    Write-Output "Failed to create symbolic link."
+}
 
-#Log-Finish -LogPath $sLogFile
+Start-Sleep -s 20
