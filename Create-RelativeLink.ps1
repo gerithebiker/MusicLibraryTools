@@ -1,17 +1,16 @@
 <#
 .SYNOPSIS
-  Creates a relative link using the DirName parameter
+  Creates a relative link into the current directory, using the DirName parameter
 
 .DESCRIPTION
-  It will create a relative link
+  You can use this script directly, but it was designed to use with a tool like Unreal Commander, or Total Commander. 
 
 .PARAMETER DirName
-	The name of the directory
+	The name of the directory where you want the link to be created
 
 .PARAMETER Target
-	Target name
+	Target name, where you want the link to point to
     
-
 .INPUTS
   None
 
@@ -24,15 +23,12 @@
   Creation Date:  2024.05.24
   Purpose/Change: First working version
 
-  
-
 .EXAMPLE
-  Create_RelativeLink dir Target
+  Create_RelativeLink -t C:\myPath\myTarget -w C:\secondPath\Directory\whereToPutTheLink
   
 #>
 
 #-------------------------------------------------------[Parameter Handling]-------------------------------------------------------
-
     [CmdletBinding()] # For using the common parameters
     Param (
 		[Parameter(Mandatory=$true)]
@@ -40,81 +36,21 @@
 		[string]$workingDir
 	)
 
-
-
-#---------------------------------------------------------[Initialisations]--------------------------------------------------------
-
-#Set Error Action to Silently Continue
-$ErrorActionPreference = "SilentlyContinue"
-
-#Dot Source required Function Libraries. It is not defined yet
-#. "Path\Library.ps1"
-
 #----------------------------------------------------------[Declarations]----------------------------------------------------------
 
 #Script Version
-$sScriptVersion = "0.0"
-
-#Log File Info
-$sLogPath = "$env:homedrive$env:homepath\Temp"
-<#
-#Checking logpath
-if(!(Test-Path -Path $sLogPath )){
-    New-Item -ItemType directory -Path $sLogPath
-}#>
-
-$sLogName = $MyInvocation.MyCommand.Name.Split('.')[0]
-$sLogFile = Join-Path -Path $sLogPath -ChildPath $sLogName
-
-#-----------------------------------------------------------[Functions]------------------------------------------------------------
-
-<#
-Function <FunctionName>{
-  Param()
-
-  Begin{
-    Log-Write -LogPath $sLogFile -LineValue "<description of what is going on>..."
-  }
-
-  Process{
-    Try{
-      <code goes here>
-    }
-
-    Catch{
-      Log-Error -LogPath $sLogFile -ErrorDesc $_.Exception -ExitGracefully $True
-      Break
-    }
-  }
-
-  End{
-    If($?){
-      Log-Write -LogPath $sLogFile -LineValue "Completed Successfully."
-      Log-Write -LogPath $sLogFile -LineValue " "
-    }
-  }
-}
-#>
+#sScriptVersion = "0.0"
 
 #-----------------------------------------------------------[Execution]------------------------------------------------------------
 
-# 
-Set-Location $workingDir
+Set-Location -LiteralPath $workingDir
 $targetArray = $targetDirectory.split("\")
 $workingArray = $workingDir.split("\")
-# $targetArray
-
-$targetDirectory 
-#$workingDir
-Write-Host "devider....."
-#$nameArray = $workingDir.split("\")
-#$myLength = $targetArray.length - 2
 $linkName = $targetArray[$targetArray.length - 2]
-"workingDir: "
+
+$targetDirectory
 $workingDir
-$targetArray[0]
-#$nameArray
-#Start-Sleep -s 10
+$linkName
 
 if($workingArray[0] -ne $targetArray[0]){
 	Write-Output "Must be on the same drive. Exiting..."
@@ -129,16 +65,21 @@ if($workingArray[0] -ne $targetArray[0]){
 		if($targetArray[$i] -eq $workingArray[$i]){
 			$counter++
 		} else {
-            for($j=$counter + 1; $j -lt ($workingArray.length - 1); $j++){
+            for($j=$counter; $j -lt ($workingArray.length - 1); $j++){
                 $relativeLink = $relativeLink + "..\"
+                $relativeLink
             }
             $relativeLink = $relativeLink -replace ".$"
-            for($j=$counter + 1; $j -lt ($targetArray.length - 1); $j++){
+            $relativeLink
+            for($j=$counter; $j -lt ($targetArray.length - 1); $j++){
                 $relativeLink = $relativeLink + "\" + $targetArray[$j]
+                $relativeLink
             }
 		}
 	}
 	Write-Host "Creating Link..." $linkName"," $relativeLink
+    $linkName = [Regex]::Escape($linkName) #$linkName -replace '[+(),\\.]{}','\$&'
+    Write-Host "Creating Link..." $linkName"," $relativeLink
     #$relativeLink
 	New-Item -ItemType SymbolicLink -Path $linkName -Target $relativeLink
 	#Start-Sleep -s 10

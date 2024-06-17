@@ -49,6 +49,16 @@ param (
 		[switch]$force,
 		[switch]$delete
     )
+	
+
+$runTimeTXT = "Runtime: "
+$startTime = Get-Date
+$Global:createdPL = 0
+$Global:deletedPL = 0
+$Global:skipped = 0
+
+$isVerbose = $PSCmdlet.MyInvocation.BoundParameters["Verbose"].IsPresent
+if(!$isVerbose){Write-Host "Running..."}
 
 function CreatePlaylistForDirectory {
     param (
@@ -77,6 +87,7 @@ function CreatePlaylistForDirectory {
 			} | Select-Object -ExpandProperty Name
 			foreach ($m3u in $m3uNames) {
 				Remove-Item -LiteralPath $directoryPath\$m3u
+				$Global:deletedPL++
 			}			
 		}
 		# Find all matching files in the current directory (non-recursively) and store their names in a variable
@@ -94,12 +105,16 @@ function CreatePlaylistForDirectory {
 		# Write the filenames to the .m3u file if there are any files found in the current directory
 		if ($fileNames) {
 			$fileNames | Out-File -LiteralPath $outputFileName
-			Write-Host "Created playlist in '$directoryPath' named $([char]27)[32m$([char]27)[7m '_$fileName.m3u'$([char]27)[0m " #-ForegroundColor green 
+			Write-Host "Created playlist in '$directoryPath' named $([char]27)[32m$([char]27)[7m '_$fileName.m3u'$([char]27)[0m " $createdPL #-ForegroundColor green 
+			$Global:createdPL++
+			
 		} else {
-			Write-Host "There was no music files in $directoryPath folder..."
+			Write-Verbose "There was no music files in $directoryPath folder..." 
+			$Global:skipped++
 		}
 	} else {
-		Write-Host "There was an m3u file  in $directoryPath folder already..."
+		Write-Verbose "There was an m3u file  in $directoryPath folder already..."
+		$Global:skipped++
 	}
 }
 
@@ -125,3 +140,9 @@ if(!$startPath){
 
 # Begin the traversal and playlist creation process
 TraverseDirectories -rootPath $startPath
+
+Write-Host "`nCreated"$Global:createdPL "new playlists," $Global:skipped "folders were skipped."
+if($Global:deletedPL -gt 0){Write-Host $Global:deletedPL"playlists were deleted."}
+$endTime = Get-Date
+$runTime = [Math]::Round((New-TimeSpan -Start $startTime -end $endTime).totalseconds,2)
+Write-Host $runTimeTXT$runTime "seconds."
