@@ -105,8 +105,8 @@ function CreatePlaylistForDirectory {
 		# Write the filenames to the .m3u file if there are any files found in the current directory
 		if ($fileNames) {
 			$fileNames | Out-File -LiteralPath $outputFileName
-			Write-Host "Created playlist in '$directoryPath' named $([char]27)[32m$([char]27)[7m '_$fileName.m3u'$([char]27)[0m " $createdPL #-ForegroundColor green 
 			$Global:createdPL++
+			Write-Host "Created playlist in '$directoryPath' named $([char]27)[32m$([char]27)[7m '_$fileName.m3u'$([char]27)[0m " $createdPL #-ForegroundColor green 
 			
 		} else {
 			Write-Verbose "There was no music files in $directoryPath folder..." 
