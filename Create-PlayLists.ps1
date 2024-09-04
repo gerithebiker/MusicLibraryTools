@@ -56,6 +56,7 @@ $startTime = Get-Date
 $Global:createdPL = 0
 $Global:deletedPL = 0
 $Global:skipped = 0
+$Global:existing = 0
 
 $isVerbose = $PSCmdlet.MyInvocation.BoundParameters["Verbose"].IsPresent
 if(!$isVerbose){Write-Host "Running..."}
@@ -114,6 +115,7 @@ function CreatePlaylistForDirectory {
 		}
 	} else {
 		Write-Verbose "There was an m3u file  in $directoryPath folder already..."
+		$Global:existing++
 		$Global:skipped++
 	}
 }
@@ -142,6 +144,8 @@ if(!$startPath){
 TraverseDirectories -rootPath $startPath
 
 Write-Host "`nCreated"$Global:createdPL "new playlists," $Global:skipped "folders were skipped."
+$allm3u=$Global:existing+$Global:createdPL
+Write-Host "Number of existing playlists:" $Global:existing "`nNumber of total playlists:" $allm3u
 if($Global:deletedPL -gt 0){Write-Host $Global:deletedPL"playlists were deleted."}
 $endTime = Get-Date
 $runTime = [Math]::Round((New-TimeSpan -Start $startTime -end $endTime).totalseconds,2)
