@@ -57,6 +57,8 @@ $Global:createdPL = 0
 $Global:deletedPL = 0
 $Global:skipped = 0
 $Global:existing = 0
+$Global:albums = 0
+$Global:isoAlbums = 0
 
 $isVerbose = $PSCmdlet.MyInvocation.BoundParameters["Verbose"].IsPresent
 if(!$isVerbose){Write-Host "Running..."}
@@ -82,6 +84,7 @@ function CreatePlaylistForDirectory {
 	$isM3U = Get-ChildItem -LiteralPath $directoryPath | Where-Object {$_.Extension -eq ".m3u"}
 
 	if(!$isM3U -or ($force)){
+        # If 'delete' was reqested, we will remove the m3u files
 		if($delete -and $isM3U){
 			$m3uNames = Get-ChildItem -LiteralPath $directoryPath | Where-Object { 
 				$_.Extension -eq ".m3u"  
@@ -107,16 +110,26 @@ function CreatePlaylistForDirectory {
 		if ($fileNames) {
 			$fileNames | Out-File -LiteralPath $outputFileName
 			$Global:createdPL++
+            $Global:albums++
 			Write-Host "Created playlist in '$directoryPath' named $([char]27)[32m$([char]27)[7m '_$fileName.m3u'$([char]27)[0m " $createdPL #-ForegroundColor green 
 			
 		} else {
-			Write-Verbose "There was no music files in $directoryPath folder..." 
-			$Global:skipped++
+            # Now we check, if there is an iso file in the folder. If yes, that means that is also an album
+            # We collect it for stats
+            $isoNames = Get-ChildItem -LiteralPath $directoryPath | Where-Object {$_.Extension -eq ".iso"} | Select-Object -ExpandProperty Name
+			if ($isoNames) {
+                $Global:isoAlbums++
+                $Global:albums++
+            } else {
+                Write-Verbose "There was no music files in $directoryPath folder..." 
+			    $Global:skipped++
+            }
 		}
 	} else {
 		Write-Verbose "There was an m3u file  in $directoryPath folder already..."
 		$Global:existing++
 		$Global:skipped++
+        $Global:albums++
 	}
 }
 
@@ -147,6 +160,7 @@ Write-Host "`nCreated"$Global:createdPL "new playlists," $Global:skipped "folder
 $allm3u=$Global:existing+$Global:createdPL
 Write-Host "Number of existing playlists:" $Global:existing "`nNumber of total playlists:" $allm3u
 if($Global:deletedPL -gt 0){Write-Host $Global:deletedPL"playlists were deleted."}
+Write-Host "Number of total albums:" $Global:albums"," $Global:isoAlbums " are in ISO format."
 $endTime = Get-Date
 $runTime = [Math]::Round((New-TimeSpan -Start $startTime -end $endTime).totalseconds,2)
 Write-Host $runTimeTXT$runTime "seconds."
