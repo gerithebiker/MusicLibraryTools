@@ -61,7 +61,7 @@ if($workingArray[0] -ne $targetArray[0]){
 	$counter = 0
 	$relativeLink = ""
     #$firstHalf = ""
-	for($i=1; $i -lt ($targetArray.length - 2); $i++){
+	for($i=1; $i -lt ($targetArray.length - 1); $i++){
 		if($targetArray[$i] -eq $workingArray[$i]){
 			$counter++
 		} else {
@@ -78,10 +78,10 @@ if($workingArray[0] -ne $targetArray[0]){
 		}
 	}
 	Write-Host "Creating Link..." $linkName"," $relativeLink
-    $linkName = [Regex]::Escape($linkName) #$linkName -replace '[+(),\\.]{}','\$&'
-    Write-Host "Creating Link..." $linkName"," $relativeLink
+    #$linkName = [Regex]::Escape($linkName) #$linkName -replace '[+(),\\.]{}','\$&'
+    Write-Host "Creating Link..." $linkName",##" $relativeLink
     #$relativeLink
-	New-Item -ItemType SymbolicLink -Path $linkName -Target $relativeLink
+	New-Item -ItemType SymbolicLink -Path '$linkName' -Target '$relativeLink' #-LiteralPath
 	#Start-Sleep -s 10
 }
 

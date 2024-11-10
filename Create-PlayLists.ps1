@@ -160,7 +160,7 @@ Write-Host "`nCreated"$Global:createdPL "new playlists," $Global:skipped "folder
 $allm3u=$Global:existing+$Global:createdPL
 Write-Host "Number of existing playlists:" $Global:existing "`nNumber of total playlists:" $allm3u
 if($Global:deletedPL -gt 0){Write-Host $Global:deletedPL"playlists were deleted."}
-Write-Host "Number of total albums:" $Global:albums"," $Global:isoAlbums " are in ISO format."
+Write-Host "Number of total albums:" $Global:albums"," $Global:isoAlbums" are in ISO format."
 $endTime = Get-Date
 $runTime = [Math]::Round((New-TimeSpan -Start $startTime -end $endTime).totalseconds,2)
 Write-Host $runTimeTXT$runTime "seconds."
