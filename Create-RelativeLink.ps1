@@ -29,7 +29,9 @@
 #>
 
 #-------------------------------------------------------[Parameter Handling]-------------------------------------------------------
-    [CmdletBinding()] # For using the common parameters
+
+
+[CmdletBinding()] # For using the common parameters
     Param (
 		[Parameter(Mandatory=$true)]
 		[string]$targetDirectory,
@@ -42,15 +44,54 @@
 #sScriptVersion = "0.0"
 
 #-----------------------------------------------------------[Execution]------------------------------------------------------------
-
-Set-Location -LiteralPath $workingDir
-$targetArray = $targetDirectory.split("\")
-$workingArray = $workingDir.split("\")
-$linkName = $targetArray[$targetArray.length - 2]
-
+Write-Host "Stuff"
 $targetDirectory
 $workingDir
-$linkName
+$linkName 
+Start-Sleep -s 20
+
+Set-Location  $workingDir #-LiteralPath
+$targetArray = $targetDirectory.split("\")
+$workingArray = $workingDir.split("\")
+$linkName = $targetArray[$targetArray.length - 2] #$workingDir + 
+
+
+function Get-RelativePath {
+    param (
+        [string]$fromPath,
+        [string]$toPath
+    )
+
+    # Trim any trailing backslashes
+    $fromPath = $fromPath.TrimEnd('\')
+    $toPath = $toPath.TrimEnd('\')
+
+    # Split paths into arrays by directory levels
+    $fromParts = $fromPath -split '\\'
+    $toParts = $toPath -split '\\'
+
+    # Find common path length
+    $i = 0
+    while ($i -lt $fromParts.Length -and $i -lt $toParts.Length -and $fromParts[$i] -eq $toParts[$i]) {
+        $i++
+    }
+
+    # Calculate how many directories to go up from $fromPath
+    $upLevels = $fromParts.Length - $i
+    $relativeParts = @()
+    
+    # Add "..\" for each level up to the common path
+    for ($j = 0; $j -lt $upLevels; $j++) {
+        $relativeParts += ".."
+    }
+
+    # Add remaining parts of $toPath to form the relative path
+    $relativeParts += $toParts[$i..($toParts.Length - 1)]
+
+    # Join parts with backslashes to form the final relative path
+    $relativePath = [System.IO.Path]::Combine($relativeParts -join [System.IO.Path]::DirectorySeparatorChar)
+    return $relativePath
+}
 
 if($workingArray[0] -ne $targetArray[0]){
 	Write-Output "Must be on the same drive. Exiting..."
@@ -58,30 +99,12 @@ if($workingArray[0] -ne $targetArray[0]){
 	exit
 } else {
 	# 
-	$counter = 0
-	$relativeLink = ""
-    #$firstHalf = ""
-	for($i=1; $i -lt ($targetArray.length - 1); $i++){
-		if($targetArray[$i] -eq $workingArray[$i]){
-			$counter++
-		} else {
-            for($j=$counter; $j -lt ($workingArray.length - 1); $j++){
-                $relativeLink = $relativeLink + "..\"
-                $relativeLink
-            }
-            $relativeLink = $relativeLink -replace ".$"
-            $relativeLink
-            for($j=$counter; $j -lt ($targetArray.length - 1); $j++){
-                $relativeLink = $relativeLink + "\" + $targetArray[$j]
-                $relativeLink
-            }
-		}
-	}
-	Write-Host "Creating Link..." $linkName"," $relativeLink
-    #$linkName = [Regex]::Escape($linkName) #$linkName -replace '[+(),\\.]{}','\$&'
-    Write-Host "Creating Link..." $linkName",##" $relativeLink
-    #$relativeLink
-	New-Item -ItemType SymbolicLink -Path '$linkName' -Target '$relativeLink' #-LiteralPath
+    Set-Location $workingDir
+    $relativePath = Get-RelativePath -fromPath $workingDir -toPath $targetDirectory
+    Write-Host "Relative Path: " $relativePath
+    Write-Host "Creating Link..." $linkName",##" $relativePath
+
+	New-Item -ItemType SymbolicLink -Path $linkName -Target $relativePath #-LiteralPath
 	#Start-Sleep -s 10
 }
 
@@ -92,4 +115,4 @@ if (Test-Path $workingDir) {
     Write-Output "Failed to create symbolic link."
 }
 
-Start-Sleep -s 20
+Start-Sleep -s 290
