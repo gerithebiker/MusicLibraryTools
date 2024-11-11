@@ -44,17 +44,29 @@
 #sScriptVersion = "0.0"
 
 #-----------------------------------------------------------[Execution]------------------------------------------------------------
-Write-Host "Stuff"
-$targetDirectory
-$workingDir
-$linkName 
-Start-Sleep -s 20
 
 Set-Location  $workingDir #-LiteralPath
 $targetArray = $targetDirectory.split("\")
 $workingArray = $workingDir.split("\")
-$linkName = $targetArray[$targetArray.length - 2] #$workingDir + 
+$linkName = $workingDir+$targetArray[$targetArray.length - 2]+".lnk" #$workingDir + 
 
+function New-RelativeShortcut {
+    param (
+        [string]$shortcutPath,  # Path to where the .lnk shortcut should be created
+        [string]$relativeTarget  # Relative path to the target file or folder
+    )
+
+    # Create a Shell COM object
+    $shell = New-Object -ComObject WScript.Shell
+    $shortcut = $shell.CreateShortcut($shortcutPath)
+
+    # Set the shortcut properties
+    $shortcut.TargetPath = $relativeTarget  # Relative path to target
+    $shortcut.WorkingDirectory = (Get-Location).Path  # Optional: Set current directory as working directory
+
+    # Save the shortcut
+    $shortcut.Save()
+}
 
 function Get-RelativePath {
     param (
@@ -101,18 +113,27 @@ if($workingArray[0] -ne $targetArray[0]){
 	# 
     Set-Location $workingDir
     $relativePath = Get-RelativePath -fromPath $workingDir -toPath $targetDirectory
-    Write-Host "Relative Path: " $relativePath
-    Write-Host "Creating Link..." $linkName",##" $relativePath
+    #Write-Host "Relative Path: " $relativePath
+    Write-Host "Creating Link using the following command:"
+    Write-Host "New-RelativeShortcut $linkName $relativePath"
+	#New-Item -ItemType SymbolicLink -Path $linkName -Target $relativePath #-LiteralPath
+    #Start-Process cmd.exe -ArgumentList "/c mklink /D `"$linkName`" `"$relativePath`"" -Verb RunAs
+    New-Item -ItemType Junction -Path $linkName -Target $relativePath 
+    #New-RelativeShortcut $linkName $relativePath
 
-	New-Item -ItemType SymbolicLink -Path $linkName -Target $relativePath #-LiteralPath
 	#Start-Sleep -s 10
 }
 
 # Confirm creation
-if (Test-Path $workingDir) {
+if (Test-Path $linkName) {
     Write-Output "Symbolic link created successfully."
 } else {
     Write-Output "Failed to create symbolic link."
 }
 
 Start-Sleep -s 290
+
+
+
+
+
