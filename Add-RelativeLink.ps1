@@ -117,7 +117,8 @@ if($workingArray[0] -ne $targetArray[0]){
     Write-Host "Creating Link using the following command:"
     Write-Host "New-RelativeShortcut $linkName $relativePath"
 	#New-Item -ItemType SymbolicLink -Path $linkName -Target $relativePath #-LiteralPath
-    #Start-Process cmd.exe -ArgumentList "/c mklink /D `"$linkName`" `"$relativePath`"" -Verb RunAs
+    #$tPath = "A"+$linkName
+    #Start-Process cmd.exe -ArgumentList "/c mklink /D `"$tPath`" `"$relativePath`"" -Verb RunAs
     New-Item -ItemType Junction -Path $linkName -Target $relativePath 
     #New-RelativeShortcut $linkName $relativePath
 
@@ -131,7 +132,7 @@ if (Test-Path $linkName) {
     Write-Output "Failed to create symbolic link."
 }
 
-Start-Sleep -s 290
+#Start-Sleep -s 290
 
 
 
