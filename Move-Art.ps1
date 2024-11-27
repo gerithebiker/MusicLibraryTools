@@ -27,7 +27,9 @@ $files = Get-ChildItem -LiteralPath $artPath -Filter "*"
 
 # Move each file. "LiteralPath" cannot use wildcard, that is why we had to put together this list, and do one-by-one
 foreach ($file in $files) {
-    Move-Item -LiteralPath $file.FullName -Destination $workingDir
+	$newName = $file.Name -replace '^', 'zArt'
+	$newName = Join-Path -Path $workingDir -ChildPath $newName
+    Move-Item -LiteralPath $file.FullName -Destination $newName
 }
 
 # Now we remove the not needed empty folder

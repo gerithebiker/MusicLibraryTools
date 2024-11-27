@@ -15,6 +15,7 @@ $fileListArray = $fileList -split '(?<=flac) '
 $fileListArray | ForEach-Object { 
 	Write-Host "working on: $_ "
 	$newName = $_ -replace ' -', ', '
+	$newName = $newName -replace '-', [char]0x2013
 	$newName = $newName -replace '  ', ' '
 	$newName = $newName -replace '(\d\d?)(. ?)(.*)', '$1 - $3'
 	$newName = Join-Path -Path $workingDir -ChildPath $newName
