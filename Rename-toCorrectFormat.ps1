@@ -14,6 +14,7 @@
 #   with a regex, so in case it is passed without it, it will not cause an issue.
 $workingDir = $workingDir -replace ' ?$'
 $fileList = $fileList -replace ' ?$'
+$noMatch = 0 
 
 # Write-Host "List: '$fileList'" # This line might need for tshooting
 # We specify the possible file types.
@@ -52,7 +53,9 @@ $fileListArray | ForEach-Object {
     } elseif ($newName -match "\d\. ?") {
         $newName = $newName -replace '(\d?)(. ?)(.*)', '0$1 - $3' # This will replace second character with a possible space after and put a 0 at the beginning...
     } else {
-        Write-Output "No match found."
+        Write-Host -ForegroundColor Red -BackgroundColor Blue -NoNewline "No matching digits found for file "
+        Write-Host -ForegroundColor Yellow -BackgroundColor Blue "$_"
+        $noMatch++
     }
 	# $newName = $newName -replace '(\d\d?)(. ?)(.*)', '$1 - $3' # This will replace third character with a possible space after.
 	$newName = Join-Path -Path $workingDir -ChildPath $newName
@@ -60,11 +63,19 @@ $fileListArray | ForEach-Object {
 	
 	Rename-Item -LiteralPath $oldName -NewName $newName -Force
     # Next 2 lines are for tshooting/development
-	#$fullNewName = $workingDir$newName
-	#Write-Host "NN: $newName --- $oldName"
+	# $fullNewName = $workingDir$newName
+	# Write-Host "NN: $newName --- $oldName"
 }
 
 Write-Host "Done"
+if($noMatch -gt 0){ # There is a message that the user should read...
+    Write-Host -ForegroundColor Red -BackgroundColor Blue "`nThere were issues, please read the output.`nPress any key to exit..."
+    while ($true) {
+        if ($Host.UI.RawUI.KeyAvailable) {
+            break
+        }
+    }
+}
 
 # For tshooting, or if you just want to see the messages, uncomment the following line
-# Start-Sleep -s 290
+# 
