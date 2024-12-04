@@ -46,11 +46,19 @@ $fileListArray | ForEach-Object {
 	$newName = $_ -replace ' -', ', ' # I do not like - in the file names, except after the number, so replacing it with a ,
 	$newName = $newName -replace '-', [char]0x2013 # This is for the dashes that stay, replacing them to a longer one.
 	$newName = $newName -replace '  ', ' ' # Remowing the double spaces
-	$newName = $newName -replace '(\d\d?)(. ?)(.*)', '$1 - $3' # This will replace third character with a possible space after.
+    # Check the input against regex patterns
+    if ($newName -match "\d\d\. ?") {
+        $newName = $newName -replace '(\d\d?)(. ?)(.*)', '$1 - $3' # This will replace third character with a possible space after.
+    } elseif ($newName -match "\d\. ?") {
+        $newName = $newName -replace '(\d?)(. ?)(.*)', '0$1 - $3' # This will replace second character with a possible space after and put a 0 at the beginning...
+    } else {
+        Write-Output "No match found."
+    }
+	# $newName = $newName -replace '(\d\d?)(. ?)(.*)', '$1 - $3' # This will replace third character with a possible space after.
 	$newName = Join-Path -Path $workingDir -ChildPath $newName
 	$oldName = Join-Path -Path $workingDir -ChildPath $_
 	
-	Rename-Item -LiteralPath $oldName -NewName $newName
+	Rename-Item -LiteralPath $oldName -NewName $newName -Force
     # Next 2 lines are for tshooting/development
 	#$fullNewName = $workingDir$newName
 	#Write-Host "NN: $newName --- $oldName"
