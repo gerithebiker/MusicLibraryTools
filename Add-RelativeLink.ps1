@@ -43,12 +43,16 @@
 #Script Version
 #sScriptVersion = "0.0"
 
-#-----------------------------------------------------------[Execution]------------------------------------------------------------
 
-Set-Location  $workingDir #-LiteralPath
+#-----------------------------------------------------------[Execution]------------------------------------------------------------
+$targetDirectory = $targetDirectory -replace '.$'
+$workingDir = $workingDir -replace '.$'
+Set-Location -LiteralPath $workingDir
 $targetArray = $targetDirectory.split("\")
 $workingArray = $workingDir.split("\")
 $linkName = $workingDir+$targetArray[$targetArray.length - 2]+".lnk" #$workingDir + 
+$tPath = $workingDir+"A_"+$targetArray[$targetArray.length - 2]+".lnk"
+Write-Output "Ez a link name valtozo: $linkName"
 
 function New-RelativeShortcut {
     param (
@@ -111,18 +115,34 @@ if($workingArray[0] -ne $targetArray[0]){
 	exit
 } else {
 	# 
-    Set-Location $workingDir
+    Set-Location -LiteralPath $workingDir
     $relativePath = Get-RelativePath -fromPath $workingDir -toPath $targetDirectory
-    #Write-Host "Relative Path: " $relativePath
+
+    Write-Host "tPath: " $tPath
     Write-Host "Creating Link using the following command:"
     Write-Host "New-RelativeShortcut $linkName $relativePath"
 	#New-Item -ItemType SymbolicLink -Path $linkName -Target $relativePath #-LiteralPath
-    #$tPath = "A"+$linkName
-    #Start-Process cmd.exe -ArgumentList "/c mklink /D `"$tPath`" `"$relativePath`"" -Verb RunAs
+    
+	# Escape tricky characters for cmd.exe
+	# $escapedTPath = $tPath #-replace "(['&<>[\]])", '^$1'
+	# $escapedRelativePath = $relativePath #-replace "(['&<>[\]])", '^$1'
+	
+	$quotedTPath = "`"$tPath`""
+	$quotedRelativePath = "`"$relativePath`""
+	
+	$cmdPath = "cmd.exe"
+	$cmdCommand = "mklink /D $quotedTPath $quotedRelativePath"
+
+	Write-Output "Content of arguments: $cmdCommand"
+
+	# Start the process
+	#Start-Process -FilePath $cmdPath -ArgumentList $cmdArguments -NoNewWindow -Wait -Verb RunAs
+	& cmd.exe /c $cmdCommand 
+	
+	
     New-Item -ItemType Junction -Path $linkName -Target $relativePath 
     #New-RelativeShortcut $linkName $relativePath
-
-	#Start-Sleep -s 10
+	Start-Sleep -s 10
 }
 
 # Confirm creation
@@ -132,7 +152,7 @@ if (Test-Path $linkName) {
     Write-Output "Failed to create symbolic link."
 }
 
-#Start-Sleep -s 290
+Start-Sleep -s 290
 
 
 

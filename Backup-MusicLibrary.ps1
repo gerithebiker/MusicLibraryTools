@@ -38,19 +38,44 @@
 		# [string]$workingDir
 	)
 
-#----------------------------------------------------------[Declarations]----------------------------------------------------------
-
-#Script Version
-#sScriptVersion = "0.0"
-# Path to configuration file
-$configFile = "$env:USERPROFILE\MusicTools\SourceDestinationPairs.txt"
-if (!(Test-Path $configFile)) {
-    Write-Output "Configuration file $configFile does not exist, exiting..."
-    Exit
-}
-$outputLnkFileList = "$env:USERPROFILE\MusicTools\AllLnkFiles.txt"
 
 #-----------------------------------------------------------[Functions]------------------------------------------------------------
+function Get-PathPairs {
+    param (
+        [string]$configFile  # Path to the configuration file
+    )
+
+	$pathPairs = @()
+
+	while ($true) {
+		# Prompt for user input
+		$input = Read-Host "Enter SourcePath|DestinationPath or type 'done'"
+
+		if ($input -eq 'done') {
+			break
+		}
+
+		# Validate the input format
+		if ($input -notmatch '.*\|.*') {
+			Write-Output "Invalid format. Please enter in the format 'SourcePath|DestinationPath'."
+			continue
+		}
+
+		$pathPairs += $input
+	}
+
+	# Write path pairs to the config file
+	if ($pathPairs.Count -gt 0) {
+		$pathPairs | Out-File -FilePath $configFile -Encoding UTF8
+		Write-Output "Configuration file created at $configFile."
+	} else {
+		Write-Output "No path pairs were entered. Exiting..."
+		Exit
+	}
+    # Return the configuration file content
+    # return Get-Content -Path $configFile
+}
+
 function Convert-ShortcutToUNC {
     Get-Content -Path $lnkFileListPath | ForEach-Object {
         $originalLnkPath = $_.Trim()
@@ -90,6 +115,17 @@ function Convert-ShortcutToUNC {
 
     Write-Output "Shortcut conversion to UNC paths completed."
 }
+#----------------------------------------------------------[Declarations]----------------------------------------------------------
+
+#Script Version
+#sScriptVersion = "0.0"
+# Path to configuration file
+$configFile = "$env:USERPROFILE\MusicTools\SourceDestinationPairs.txt"
+if (!(Test-Path $configFile)) {Get-PathPairs} else {Write-Output "Configuration file $configFile already exists. Proceeding..."}
+    # Write-Output "Configuration file $configFile does not exist, exiting..."
+    # Exit
+# }
+$outputLnkFileList = "$env:USERPROFILE\MusicTools\AllLnkFiles.txt"
 
 #-----------------------------------------------------------[Execution]------------------------------------------------------------
 # Clear previous content in the output list file
@@ -111,14 +147,14 @@ Get-Content -Path $configFile | ForEach-Object {
     $paths = $_ -split '\|'
     $sourcePath = $paths[0].Trim()
     $destinationPath = $paths[1].Trim()
-    #$a[$sourcePath] = $destinationPath
+    Write-Output "$sourcePath = $destinationPath"
 
     # Run robocopy for each source-destination pair
     Write-Output "Copying from $sourcePath to $destinationPath..."
-    Start-Process -FilePath "robocopy.exe" -ArgumentList "`"$sourcePath`" `"$destinationPath`" /E /XF *.lnk" -NoNewWindow -Wait
+    #Start-Process -FilePath "robocopy.exe" -ArgumentList "`"$sourcePath`" `"$destinationPath`" /E /XF *.lnk" -NoNewWindow -Wait
 
     # Append each .lnk file found to the output list file
-    Get-ChildItem -Path $sourcePath -Filter "*.lnk" -Recurse | ForEach-Object {
+    Get-ChildItem -LiteralPath $sourcePath -Filter "*.lnk" -Recurse | ForEach-Object {
         $_.FullName | Out-File -FilePath $outputLnkFileList -Append
     }
 
