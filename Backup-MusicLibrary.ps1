@@ -48,20 +48,20 @@ function Get-PathPairs {
 	$pathPairs = @()
 
 	while ($true) {
-		# Prompt for user input
-		$input = Read-Host "Enter SourcePath|DestinationPath or type 'done'"
+		# Prompt for user configInput
+		$configInput = Read-Host "Enter SourcePath|DestinationPath or type 'done'"
 
-		if ($input -eq 'done') {
+		if ($configInput -eq 'done') {
 			break
 		}
 
-		# Validate the input format
-		if ($input -notmatch '.*\|.*') {
+		# Validate the configInput format
+		if ($configInput -notmatch '.*\|.*') {
 			Write-Output "Invalid format. Please enter in the format 'SourcePath|DestinationPath'."
 			continue
 		}
 
-		$pathPairs += $input
+		$pathPairs += $configInput
 	}
 
 	# Write path pairs to the config file
@@ -73,11 +73,15 @@ function Get-PathPairs {
 		Exit
 	}
     # Return the configuration file content
-    # return Get-Content -Path $configFile
+    return Get-Content -Path $configFile
 }
 
 function Convert-ShortcutToUNC {
-    Get-Content -Path $lnkFileListPath | ForEach-Object {
+    param (
+        [string]$sourcePath,
+        [string]$outputLnkFileList  # 
+    )
+    Get-Content -Path $outputLnkFileList | ForEach-Object {
         $originalLnkPath = $_.Trim()
 
         # Find the matching source-destination pair
@@ -86,14 +90,17 @@ function Convert-ShortcutToUNC {
             $relativeTargetPath = ""
 
             # Load the existing shortcut to read its properties
-            $shortcut = $shell.CreateShortcut($originalLnkPath)
-            $relativeTargetPath = $shortcut.TargetPath
+            $shortcut = Get-Item -Path $originalLnkPath 
+            $relativeTargetPath = $($shortcut.TargetPath)
 
             # Convert relative path to UNC path based on matched source-destination pair
-            $uncTargetPath = Join-Path -Path $pathPairs[$matchedSourcePath] -ChildPath (Resolve-Path -Path (Join-Path -Path $matchedSourcePath -ChildPath $relativeTargetPath)).TrimStart($matchedSourcePath)
+            $uncTargetPath = Join-Path -Path $pathPairs[$matchedSourcePath] -ChildPath ((Resolve-Path -Path (Join-Path -Path $matchedSourcePath -ChildPath $relativeTargetPath)).Path.TrimStart($matchedSourcePath))
+            
+            # Define the new target path on the SMB share
+            $newTargetPath = $shortcut.Target.Replace($shortcut.Root, $uncTargetPath)
 
             # Define the path where the new shortcut will be created on the SMB share
-            $newLnkPath = $originalLnkPath.Replace($matchedSourcePath, $pathPairs[$matchedSourcePath])
+            $newLnkPath = $originalLnkPath.Replace($shortcut.Root, $uncTargetPath)
 
             # Ensure the destination directory exists on the SMB share
             $newLnkDirectory = Split-Path -Path $newLnkPath
@@ -102,62 +109,71 @@ function Convert-ShortcutToUNC {
             }
 
             # Create the new shortcut on the SMB share with the UNC target path
-            $newShortcut = $shell.CreateShortcut($newLnkPath)
-            $newShortcut.TargetPath = $uncTargetPath
-            $newShortcut.WorkingDirectory = (Split-Path -Path $uncTargetPath)
+            $myShell = New-Object -ComObject WScript.Shell
+            $newShortcut = $myShell.CreateShortcut($newLnkPath)
+            $newShortcut.TargetPath = $newTargetPath
+            $newShortcut.WorkingDirectory = $newLnkPath
             $newShortcut.Save()
-
-            Write-Output "Created UNC shortcut at $newLnkPath with target $uncTargetPath"
         } else {
-            Write-Output "No matching source path found for $originalLnkPath"
+            Write-Host -ForegroundColor Red "No matching source path found for $originalLnkPath"
+            while ($true) {
+                if ($Host.UI.RawUI.KeyAvailable) {
+                    break
+                }
+            }
         }
     }
 
-    Write-Output "Shortcut conversion to UNC paths completed."
+    # Write-Output "Shortcut conversion to UNC paths completed."
 }
 #----------------------------------------------------------[Declarations]----------------------------------------------------------
 
 #Script Version
-#sScriptVersion = "0.0"
+ScriptVersion = "0.0"
+
 # Path to configuration file
 $configFile = "$env:USERPROFILE\MusicTools\SourceDestinationPairs.txt"
 if (!(Test-Path $configFile)) {Get-PathPairs} else {Write-Output "Configuration file $configFile already exists. Proceeding..."}
-    # Write-Output "Configuration file $configFile does not exist, exiting..."
-    # Exit
-# }
 $outputLnkFileList = "$env:USERPROFILE\MusicTools\AllLnkFiles.txt"
 
 #-----------------------------------------------------------[Execution]------------------------------------------------------------
+# Check if robocopy exists, it is necessary for the script to run
+if (-not (Get-Command -Name "robocopy" -ErrorAction SilentlyContinue)) {
+    Write-Output "Robocopy is not installed. Please install it and try again."
+    Exit
+}
+
 # Clear previous content in the output list file
 if (Test-Path $outputLnkFileList) {
     Clear-Content -Path $outputLnkFileList
 }
 
-# $pathPairs = @{}
-# Get-Content -Path $configFile | ForEach-Object {
-#     $paths = $_ -split '\|'
-#     $sourceBasePath = $paths[0].Trim()
-#     $networkBasePath = $paths[1].Trim()
-#     $pathPairs[$sourceBasePath] = $networkBasePath
-# }
+ $pathPairs = @{}
+ Get-Content -Path $configFile | ForEach-Object {
+     $paths = $_ -split '\|'
+     $sourceBasePath = $paths[0].Trim()
+     $networkBasePath = $paths[1].Trim()
+     $pathPairs[$sourceBasePath] = $networkBasePath
+}
 
 # Loop through each line in the configuration file
 Get-Content -Path $configFile | ForEach-Object {
     # Split each line into source and destination paths
     $paths = $_ -split '\|'
     $sourcePath = $paths[0].Trim()
+    $sourcePath = $sourcePath + "\"
     $destinationPath = $paths[1].Trim()
     Write-Output "$sourcePath = $destinationPath"
 
     # Run robocopy for each source-destination pair
     Write-Output "Copying from $sourcePath to $destinationPath..."
-    #Start-Process -FilePath "robocopy.exe" -ArgumentList "`"$sourcePath`" `"$destinationPath`" /E /XF *.lnk" -NoNewWindow -Wait
+    Start-Process -FilePath "robocopy.exe" -ArgumentList "`"$sourcePath`" `"$destinationPath`" /E /XF *.lnk /XD `"System Volume Information`" *.lnk" -NoNewWindow -Wait
 
     # Append each .lnk file found to the output list file
     Get-ChildItem -LiteralPath $sourcePath -Filter "*.lnk" -Recurse | ForEach-Object {
         $_.FullName | Out-File -FilePath $outputLnkFileList -Append
     }
 
-    #Convert-ShortcutToUNC $sourcePath $outputLnkFileList
+    Convert-ShortcutToUNC $sourcePath $outputLnkFileList
 }
 

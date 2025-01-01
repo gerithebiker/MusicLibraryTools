@@ -45,14 +45,25 @@
 
 
 #-----------------------------------------------------------[Execution]------------------------------------------------------------
+# First we check if the drive is network or local
+$myDrive = Get-PSDrive -Name $workingDir.Substring(0,1)
+if ($myDrive.DisplayRoot -like "\\*") {
+    Write-Host -ForegroundColor Red "Drive ${myDrive}: is a network drive. Exiting..."
+    while ($true) {
+        if ($Host.UI.RawUI.KeyAvailable) {
+            break
+        }
+    }
+    Exit 1
+}
+# This script is designed to use with Unreal Commander, or Total Commander
+# When the script is called, the commanders pass an extra space at the end of the working directory, we have to cut that off
 $targetDirectory = $targetDirectory -replace '.$'
 $workingDir = $workingDir -replace '.$'
 Set-Location -LiteralPath $workingDir
 $targetArray = $targetDirectory.split("\")
 $workingArray = $workingDir.split("\")
-$linkName = $workingDir+$targetArray[$targetArray.length - 2]+".lnk" #$workingDir + 
-$tPath = $workingDir+"A_"+$targetArray[$targetArray.length - 2]+".lnk"
-Write-Output "Ez a link name valtozo: $linkName"
+$linkName = $workingDir+$targetArray[$targetArray.length - 2]+".lnk" 
 
 function New-RelativeShortcut {
     param (
@@ -117,44 +128,18 @@ if($workingArray[0] -ne $targetArray[0]){
 	# 
     Set-Location -LiteralPath $workingDir
     $relativePath = Get-RelativePath -fromPath $workingDir -toPath $targetDirectory
-
-    Write-Host "tPath: " $tPath
-    Write-Host "Creating Link using the following command:"
-    Write-Host "New-RelativeShortcut $linkName $relativePath"
 	#New-Item -ItemType SymbolicLink -Path $linkName -Target $relativePath #-LiteralPath
-    
-	# Escape tricky characters for cmd.exe
-	# $escapedTPath = $tPath #-replace "(['&<>[\]])", '^$1'
-	# $escapedRelativePath = $relativePath #-replace "(['&<>[\]])", '^$1'
-	
-	$quotedTPath = "`"$tPath`""
-	$quotedRelativePath = "`"$relativePath`""
-	
-	$cmdPath = "cmd.exe"
-	$cmdCommand = "mklink /D $quotedTPath $quotedRelativePath"
-
-	Write-Output "Content of arguments: $cmdCommand"
-
-	# Start the process
-	#Start-Process -FilePath $cmdPath -ArgumentList $cmdArguments -NoNewWindow -Wait -Verb RunAs
-	& cmd.exe /c $cmdCommand 
-	
-	
     New-Item -ItemType Junction -Path $linkName -Target $relativePath 
-    #New-RelativeShortcut $linkName $relativePath
-	Start-Sleep -s 10
 }
 
 # Confirm creation
 if (Test-Path $linkName) {
     Write-Output "Symbolic link created successfully."
 } else {
-    Write-Output "Failed to create symbolic link."
+    Write-Output -ForegroundColor Red -BackgroundColor Blue "`nFailed to create symbolic link.`nPress any key to exit..."
+    while ($true) {
+        if ($Host.UI.RawUI.KeyAvailable) {
+            break
+        }
+    }
 }
-
-Start-Sleep -s 290
-
-
-
-
-

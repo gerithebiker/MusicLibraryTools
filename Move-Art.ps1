@@ -12,11 +12,26 @@
 
 # For some reason "Unreal Commander" puts a " character at the end of the path, we have to cut it off...
 # If u using the script from command line, or possibly from other commander, you might need to comment out this line
-$workingDir = $workingDir -replace '.$'
+$workingDir = $workingDir -replace ' ?$'
 
+if(Test-Path $workingDir"Artwork"){
+    $artPath = Join-Path -Path $workingDir -ChildPath Artwork
+} elseif (Test-Path $workingDir"scans") {
+    $artPath = Join-Path -Path $workingDir -ChildPath Scans
+} elseif (Test-Path $workingDir"covers") {
+    $artPath = Join-Path -Path $workingDir -ChildPath Covers
+} elseif (Test-Path $workingDir"art") {
+    $artPath = Join-Path -Path $workingDir -ChildPath Art
+} else {
+    Write-Host -ForegroundColor Red "`nThere is no 'Scans', 'Artwork', or 'Covers' folder.`nPress any key to exit..."
+    while ($true) {
+        if ($Host.UI.RawUI.KeyAvailable) {
+            break
+        }
+    }
+    Exit-PSSession
+}
 
-#$workingDir = [System.Management.Automation.WildcardPattern]::Escape($workingDir)
-$artPath = Join-Path -Path $workingDir -ChildPath Artwork
 
 # For tshooting
 Write-Host "Working Dir: $workingDir"
