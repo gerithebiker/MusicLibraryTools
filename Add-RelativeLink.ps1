@@ -35,7 +35,7 @@
     Param (
 		[Parameter(Mandatory=$true)]
 		[string]$targetDirectory,
-		[string]$workingDir
+		[string]$workingDir 
 	)
 
 #----------------------------------------------------------[Declarations]----------------------------------------------------------
@@ -62,9 +62,18 @@ $targetDirectory = $targetDirectory -replace '.$'
 $workingDir = $workingDir -replace '.$'
 Set-Location -LiteralPath $workingDir
 $targetArray = $targetDirectory.split("\")
+if($targetArray.Length -lt 4){
+    write-host "On the 'target' side you are not in an album directory. Exiting..."
+    while ($true) {
+        if ($Host.UI.RawUI.KeyAvailable) {
+            break
+        }
+    }
+    Exit 1
+}
 $workingArray = $workingDir.split("\")
-$linkName = $workingDir+$targetArray[$targetArray.length - 2]+".lnk" 
-
+$artist = $targetArray[$targetArray.length - 3] -replace " \{.*\}", ""
+$linkName = $workingDir+$artist+", "+$targetArray[$targetArray.length - 2]+".lnk" 
 function New-RelativeShortcut {
     param (
         [string]$shortcutPath,  # Path to where the .lnk shortcut should be created
