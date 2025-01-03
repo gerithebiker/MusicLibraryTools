@@ -76,6 +76,7 @@ function CreatePlaylistForDirectory {
 	# _Album Title.m3u
 	# To achieve this, we will do some replacements, using regex. The result will be in the outputFileName variable
 	$fileName = $fileName -replace '^\d\d\d\d.? - ' -replace '\[.*\]','' -replace '\(.*\)','' -replace '  ?$' #.Replace('[','').Replace(']','')
+	#if(!$isVerbose){Write-Host "The new file name will be $fileName"}
 
     # Define the output file name, using the current directory name
     $outputFileName = "$directoryPath\_$fileName.m3u"
@@ -144,6 +145,7 @@ function TraverseDirectories {
     # Recursively traverse each subdirectory and create playlists
     $directories = Get-ChildItem -LiteralPath $rootPath -Directory -Recurse
     foreach ($directory in $directories) {
+		#if(!$isVerbose){Write-Host "Working on $directory"}
         CreatePlaylistForDirectory -directoryPath $directory.FullName
     }
 }
@@ -164,3 +166,8 @@ Write-Host "Number of total albums:" $Global:albums"," $Global:isoAlbums" are in
 $endTime = Get-Date
 $runTime = [Math]::Round((New-TimeSpan -Start $startTime -end $endTime).totalseconds,2)
 Write-Host $runTimeTXT$runTime "seconds."
+while ($true) {
+    if ($Host.UI.RawUI.KeyAvailable) {
+        break
+    }
+}
