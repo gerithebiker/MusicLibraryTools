@@ -87,15 +87,24 @@ function Convert-ShortcutToUNC {
         # Find the matching source-destination pair
         $matchedSourcePath = $pathPairs.Keys | Where-Object { $originalLnkPath -like "$_*" }
         if ($matchedSourcePath) {
-            $relativeTargetPath = ""
+            #$relativeTargetPath = ""
 
             # Load the existing shortcut to read its properties
             $shortcut = Get-Item -Path $originalLnkPath 
-            $relativeTargetPath = $($shortcut.TargetPath)
-
+            #$relativeTargetPath = $($shortcut.TargetPath)
+            if($shortcut.Target[0].Length -eq 0){
+                $myShell = New-Object -ComObject WScript.Shell
+                # $myHelper = $myShell.CreateShortcut($($originalLnkPath)) 
+                # $shortcut.Target = $myHelper.TargetPath # shortcut.Target is read-only
+                write-host "Target: $($shortcut.FullName) is readonly, skipping..."
+                return
+            }
             # Convert relative path to UNC path based on matched source-destination pair
             $uncTargetPath = Join-Path -Path $pathPairs[$matchedSourcePath] -ChildPath ((Resolve-Path -Path (Join-Path -Path $matchedSourcePath -ChildPath $relativeTargetPath)).Path.TrimStart($matchedSourcePath))
             
+
+
+            write-host $shortcut.Target " #_#_#_# " $originalLnkPath
             # Define the new target path on the SMB share
             $newTargetPath = $shortcut.Target.Replace($shortcut.Root, $uncTargetPath)
 
@@ -129,7 +138,7 @@ function Convert-ShortcutToUNC {
 #----------------------------------------------------------[Declarations]----------------------------------------------------------
 
 #Script Version
-ScriptVersion = "0.0"
+#$ScriptVersion = "0.0"
 
 # Path to configuration file
 $configFile = "$env:USERPROFILE\MusicTools\SourceDestinationPairs.txt"
@@ -177,3 +186,8 @@ Get-Content -Path $configFile | ForEach-Object {
     Convert-ShortcutToUNC $sourcePath $outputLnkFileList
 }
 
+while ($true) {
+    if ($Host.UI.RawUI.KeyAvailable) {
+        break
+    }
+}

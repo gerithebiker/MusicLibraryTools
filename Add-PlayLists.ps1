@@ -166,3 +166,8 @@ Write-Host "Number of total albums:" $Global:albums"," $Global:isoAlbums" are in
 $endTime = Get-Date
 $runTime = [Math]::Round((New-TimeSpan -Start $startTime -end $endTime).totalseconds,2)
 Write-Host $runTimeTXT$runTime "seconds."
+while ($true) {
+    if ($Host.UI.RawUI.KeyAvailable) {
+        break
+    }
+}
