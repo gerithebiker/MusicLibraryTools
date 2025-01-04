@@ -35,10 +35,11 @@
 # This file is stored in the user's profile directory, and it is lodated here: "$env:USERPROFILE\MusicTools\SourceDestinationPairs.txt"
 
 #-----------------------------------------------------------[Functions]------------------------------------------------------------
-
 function Start-Waiting {
+    Write-Host -ForegroundColor Yellow "Press any key to continue..."
     while ($true) {
         if ($Host.UI.RawUI.KeyAvailable) {
+            [void]$Host.UI.RawUI.ReadKey("NoEcho, IncludeKeyDown")
             break
         }
     }   
@@ -137,11 +138,7 @@ function Convert-ShortcutToUNC {
             $newShortcut.Save()
         } else {
             Write-Host -ForegroundColor Red "No matching source path found for $originalLnkPath"
-            while ($true) {
-                if ($Host.UI.RawUI.KeyAvailable) {
-                    break
-                }
-            }
+            Start-Waiting
         }
     }
 }
@@ -176,12 +173,18 @@ Get-Content -Path $configFile | Where-Object { -not $_.TrimStart().StartsWith("#
 
     # Error checking for each path
     if (!(Test-Path $sourceBasePath)) {
-        Write-Host "The source path does not exist: $sourceBasePath"
+        Write-Host -NoNewline "The  source  path  does not exist: "
+        Write-Host -ForegroundColor Red $sourceBasePath
+        Write-Host -NoNewline "Please fix the configuration file: "
+        write-host -ForegroundColor Red $configFile
         Start-Waiting
         return
     }
     if (!(Test-Path $networkBasePath)) {
-        Write-Host "The network path does not exist: $networkBasePath"
+        Write-Host -NoNewline "The  network  path does not exist: "
+        Write-Host -ForegroundColor Red $networkBasePath
+        Write-Host -NoNewline "Please fix the configuration file: "
+        write-host -ForegroundColor Red $configFile
         Start-Waiting
         return
     }
@@ -191,12 +194,12 @@ Get-Content -Path $configFile | Where-Object { -not $_.TrimStart().StartsWith("#
 }
 
 # Loop through each line in the configuration file
-Get-Content -Path $configFile | Where-Object { -not $_.TrimStart().StartsWith("#") } | ForEach-Object {
+$pathPairs.GetEnumerator() | ForEach-Object {
     # Split each line into source and destination paths
-    $paths = $_ -split '\|'
-    $sourcePath = $paths[0].Trim()
+    # $paths = $_ -split '\|'
+    $sourcePath = $_.Key #$paths[0].Trim()
     $sourcePath = $sourcePath + "\"
-    $destinationPath = $paths[1].Trim()
+    $destinationPath = $_.Value #$paths[1].Trim()
 
     # Run robocopy for each source-destination pair
     # Write-Output "Copying from $sourcePath to $destinationPath..."
