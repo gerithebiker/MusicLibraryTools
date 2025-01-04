@@ -126,6 +126,7 @@ function Get-RelativePath {
 
     # Join parts with backslashes to form the final relative path
     $relativePath = [System.IO.Path]::Combine($relativeParts -join [System.IO.Path]::DirectorySeparatorChar)
+    $relativePath = $relativePath -replace '\[', '`[' -replace '\]', '`]'  # Escape square brackets
     return $relativePath
 }
 
@@ -142,10 +143,10 @@ if($workingArray[0] -ne $targetArray[0]){
 }
 
 # Confirm creation
-if (Test-Path $linkName) {
+if (Test-Path -LiteralPath $linkName) {
     Write-Output "Symbolic link created successfully."
 } else {
-    Write-Output -ForegroundColor Red -BackgroundColor Blue "`nFailed to create symbolic link.`nPress any key to exit..."
+    Write-Host -ForegroundColor Red -BackgroundColor Blue "`nFailed to create symbolic link.`nPress any key to exit..."
     while ($true) {
         if ($Host.UI.RawUI.KeyAvailable) {
             break
