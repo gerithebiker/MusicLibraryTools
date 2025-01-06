@@ -44,104 +44,180 @@ function Start-Waiting {
         }
     }   
 }
-function Get-PathPairs {
+
+function Get-ShortcutDetails {
+    param (
+        [string]$ShortcutPath
+    )
+
+    # Ensure the file exists
+    if (-not (Test-Path -LiteralPath $ShortcutPath)) {
+        throw "The shortcut file does not exist: $ShortcutPath"
+    }
+
+    # Check PowerShell version
+    $psMajorVersion = $PSVersionTable.PSVersion.Major
+
+    # Use WScript.Shell to read shortcut properties
+    $myShell = New-Object -ComObject WScript.Shell
+    $myHelper = $myShell.CreateShortcut($ShortcutPath)
+
+    # Extract target and root
+    $shortcutTarget = $null
+    $shortcutRoot = $null
+
+    if ($psMajorVersion -ge 7) {
+        # Handle PowerShell 7.x behavior
+        $shortcutTarget = $myHelper.TargetPath
+        $shortcutRoot = ($myHelper.FullName -split '\\')[0] + '\'
+    } elseif ($psMajorVersion -eq 5) {
+        # Handle PowerShell 5.1 behavior
+        try {
+            $shortcutTarget = $myHelper.TargetPath
+            $shortcutRoot = ($myHelper.FullName -split '\\')[0] + '\'
+        } catch {
+            throw "Failed to read shortcut details in PowerShell 5.1."
+        }
+    } else {
+        throw "Unsupported PowerShell version: $psMajorVersion"
+    }
+
+    # Return details
+    [PSCustomObject]@{
+        TargetPath = $shortcutTarget
+        RootPath   = $shortcutRoot
+    }
+}
+
+function Set-ConfigFile {
     param (
         [string]$configFile  # Path to the configuration file
     )
 
-	$pathPairs = @()
+    $pathPairs = @()
 
-	while ($true) {
-		# Prompt for user configInput
-		$configInput = Read-Host "Enter SourcePath|DestinationPath or type 'done'"
+    while ($true) {
+        # Prompt for SourcePath
+        $sourcePath = Read-Host "Enter SourcePath or type 'done' or hit enter"
 
-		if ($configInput -eq 'done') {
-			break
-		}
+        if ($sourcePath -eq 'done' -or $sourcePath -eq '') {
+            break
+        }
 
-		# Validate the configInput format
-		if ($configInput -notmatch '.*\|.*') {
-			Write-Output "Invalid format. Please enter in the format 'SourcePath|DestinationPath'."
-			continue
-		}
+        # Validate SourcePath exists
+        if (-not (Test-Path -Path $sourcePath)) {
+            Write-Host -ForegroundColor Red "SourcePath '$sourcePath' does not exist. Please try again."
+            continue
+        }
 
-		$pathPairs += $configInput
-	}
+        # Prompt for DestinationPath
+        $destinationPath = Read-Host "Enter DestinationPath"
 
-	# Write path pairs to the config file
-	if ($pathPairs.Count -gt 0) {
-		$pathPairs | Out-File -FilePath $configFile -Encoding UTF8
-		Write-Output "Configuration file created at $configFile."
-	} else {
-		Write-Output "No path pairs were entered. Exiting..."
-		Exit
-	}
-    # Return the configuration file content
-    return Get-Content -Path $configFile
+        # Validate DestinationPath exists
+        if (-not (Test-Path -Path $destinationPath)) {
+            Write-Host -ForegroundColor Red "DestinationPath '$destinationPath' does not exist. Please try again."
+            continue
+        }
+
+        # Add the validated path pair to the array
+        $pathPairs += "$sourcePath|$destinationPath"
+    }
+
+    # Write path pairs to the config file
+    if ($pathPairs.Count -gt 0) {
+        $pathPairs | Out-File -FilePath $configFile -Encoding UTF8
+        Write-Output "Configuration file created at $configFile with the following entries:"
+        $pathPairs | ForEach-Object { Write-Output $_ }
+    } else {
+        Write-Output "No valid path pairs were entered. Exiting..."
+    }
+    return
 }
-
 function Convert-ShortcutToUNC {
     param (
         [string]$sourcePath,
-        [string]$outputLnkFileList  # 
+        [string]$outputLnkFileList
     )
+
     Get-Content -Path $outputLnkFileList | ForEach-Object {
         $originalLnkPath = $_.Trim()
 
-        # Find the matching source-destination pair
-        $matchedSourcePath = $pathPairs.Keys | Where-Object { $originalLnkPath -like "$_*" }
-        if ($matchedSourcePath) {
-            #$relativeTargetPath = ""
+        # Check if the shortcut exists
+        if (-not (Test-Path -LiteralPath $originalLnkPath)) {
+            Write-Host -ForegroundColor Red "Shortcut file not found: $originalLnkPath"
+            return
+        }
 
-            # Load the existing shortcut to read its properties
-            $shortcut = Get-Item -LiteralPath $originalLnkPath 
+        # Initialize shortcut variables
+        $shortcutDetails = $null
+        $shortcut = Get-Item -LiteralPath $originalLnkPath
 
-            # We need a two helper variables to store the target path and the root path of the shortcut
-            # It is to handle the "absolute" and "relative" links differently, as they do not have the same property names,
-            #   and the "absolute" links do not have the "Root" property
-            # Later we will use these variables to create the new shortcut
-            $shortcutTarget = "" # Initialize the target path with an empty string
-            $shortcutRoot = "" # Initialize the root path with an empty string
-
-            #$relativeTargetPath = $($shortcut.TargetPath)
-            if($shortcut.Target[0].Length -eq 0){
-                $myShell = New-Object -ComObject WScript.Shell
-                $myHelper = $myShell.CreateShortcut($($originalLnkPath)) 
-                $shortcutTarget = $myHelper.TargetPath # shortcut.Target is read-only
-                $shortcutRoot = ($myHelper.FullName -split '\\')[0] + '\'
+        # Handle shortcuts differently based on their properties
+        try {
+            #if ($null -ne $shortcut.Target -and $shortcut.Target.Length -gt 0 -and $shortcut.Target[0].Length -eq 0) {
+            #if ($shortcut.Target -and $shortcut.Target -is [System.Collections.IEnumerable] -and $shortcut.Target.Count -gt 0) {
+            if ($null -ne $shortcut.Target){
+                if ($shortcut.Target.Length -gt 0){
+                                    # Handle basic shortcuts
+                    $shortcutDetails = [PSCustomObject]@{
+                        TargetPath = $shortcut.Target[0] -as [string]
+                        RootPath   = ($shortcut.FullName -split '\\')[0] + '\'
+                    }
+                } else {
+                    # Use Get-ShortcutDetails for complex cases
+                    $shortcutDetails = Get-ShortcutDetails -ShortcutPath $originalLnkPath
+                } 
             } else {
-                $shortcutTarget = $shortcut.Target
-                $shortcutRoot = $shortcut.Root
+                # Use Get-ShortcutDetails for complex cases
+                $shortcutDetails = Get-ShortcutDetails -ShortcutPath $originalLnkPath
+            }  
+        } catch {
+            Write-Host -ForegroundColor Red "Failed to process shortcut: $originalLnkPath"
+            Write-Host -ForegroundColor Red $_.Exception.Message
+            Start-Waiting
+            return
+        }
+
+        # Ensure $shortcutDetails is valid
+        if ($null -eq $shortcutDetails -or $null -eq $shortcutDetails.TargetPath) {
+            Write-Host -ForegroundColor Red "Invalid shortcut details for: $originalLnkPath"
+            return
+        }
+
+        # Convert relative path to UNC path
+        try {
+            $matchedSourcePath = $pathPairs.Keys | Where-Object { $originalLnkPath -like "$_*" }
+            if ($null -eq $matchedSourcePath) {
+                Write-Host -ForegroundColor Red "No matching source path found for $originalLnkPath"
+                return
             }
 
-            # Convert relative path to UNC path based on matched source-destination pair
-            $uncTargetPath = Join-Path -Path $pathPairs[$matchedSourcePath] -ChildPath ((Resolve-Path -Path (Join-Path -Path $matchedSourcePath -ChildPath $relativeTargetPath)).Path.TrimStart($matchedSourcePath))
-            
-            write-host $shortcutTarget " #_#_#_# " $originalLnkPath " ShortRoot: " $shortcutRoot 
-            # Define the new target path on the SMB share
-            $newTargetPath = $shortcutTarget.Replace($shortcutRoot, $uncTargetPath)
+            # Define the new shortcut on the SMB share
+            $newTargetPath = $shortcutDetails.TargetPath.Replace($shortcutDetails.RootPath, $pathPairs[$matchedSourcePath] + "\") #$uncTargetPath)
+            $newLnkPath = $originalLnkPath.Replace($shortcutDetails.RootPath,  $pathPairs[$matchedSourcePath] + "\") #$uncTargetPath)
 
-            # Define the path where the new shortcut will be created on the SMB share
-            $newLnkPath = $originalLnkPath.Replace($shortcutRoot, $uncTargetPath)
-
-            # Ensure the destination directory exists on the SMB share
+            # Ensure the destination directory exists
             $newLnkDirectory = Split-Path -Path $newLnkPath
             if (!(Test-Path -Path $newLnkDirectory)) {
                 New-Item -ItemType Directory -Path $newLnkDirectory -Force
             }
 
-            # Create the new shortcut on the SMB share with the UNC target path
+            # Create the new shortcut
             $myShell = New-Object -ComObject WScript.Shell
             $newShortcut = $myShell.CreateShortcut($newLnkPath)
             $newShortcut.TargetPath = $newTargetPath
-            $newShortcut.WorkingDirectory = $newLnkPath
+            $newShortcut.WorkingDirectory = $newLnkDirectory
             $newShortcut.Save()
-        } else {
-            Write-Host -ForegroundColor Red "No matching source path found for $originalLnkPath"
-            Start-Waiting
+
+            Write-Host -ForegroundColor Green "Shortcut created: $newLnkPath"
+            Set-Location -Path "$($newLnkPath)"
+        } catch {
+            Write-Host -ForegroundColor Red "Error creating shortcut for: $originalLnkPath"
+            Write-Host -ForegroundColor Red $_.Exception.Message
         }
     }
 }
+
 #----------------------------------------------------------[Declarations]----------------------------------------------------------
 
 #Script Version
@@ -149,7 +225,7 @@ function Convert-ShortcutToUNC {
 
 # Path to configuration file
 $configFile = "$env:USERPROFILE\MusicTools\SourceDestinationPairs.txt"
-if (!(Test-Path $configFile)) {Get-PathPairs} else {Write-Output "Configuration file $configFile already exists. Proceeding..."}
+if (!(Test-Path $configFile)) {Set-ConfigFile} #else {Write-Output "Configuration file $configFile already exists. Proceeding..."}
 # Path to output list file for the .lnk files list
 $outputLnkFileList = "$env:USERPROFILE\MusicTools\AllLnkFiles.txt"
 
@@ -157,6 +233,7 @@ $outputLnkFileList = "$env:USERPROFILE\MusicTools\AllLnkFiles.txt"
 # Check if robocopy exists, it is necessary for the script to run
 if (-not (Get-Command -Name "robocopy" -ErrorAction SilentlyContinue)) {
     Write-Output "Robocopy is not installed. Please install it and try again."
+    Start-Waiting
     Exit
 }
 
@@ -189,7 +266,7 @@ Get-Content -Path $configFile | Where-Object { -not $_.TrimStart().StartsWith("#
         return
     }
 
-    # Add valid paths to the hashtable
+    # Add valid paths to the hashtable we use later to step through
     $pathPairs[$sourceBasePath] = $networkBasePath
 }
 
