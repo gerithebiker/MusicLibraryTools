@@ -1,16 +1,32 @@
 <#
 .SYNOPSIS
-  Converts a relative link from the local drive and places it into a pre-defined SMB network drive
+  Converts a relative link from the local drive and places it into a pre-defined SMB network drive.
 
 .DESCRIPTION
-  -- ToDo --
+    This script was designed to use with "Commanders", like Unreal Commander.
+    It will convert all the relative links in the given directory to UNC paths, and create the links on the network drive.
+    The reason behind this seemingly complicated process is that the SMB does not support relative links, and the links
+        will not work if they are not converted to UNC paths. The script will create the links in the same directory structure.
+        Also, robocopy is used to copy the files. It is a "one direction" copy, it will not delete empty directories, or files.
+        It is to make sure you can copy files from multiple sources to the same destination, without deleting any files.
 
-.PARAMETER DirName
-	The name of the directory where you want the link to be created
-
-.PARAMETER Target
-	Target name, where you want the link to point to
+    This script does not use parameters directly, it is reading out from a configuration file, that is located in the user's profile directory.
+        The configuration file is located here: "$env:USERPROFILE\MusicTools\SourceDestinationPairs.txt"
+        If the file does not exist it will create it, and ask for the source and destination paths. The paths should be entered in the following format:
+        Source: "C:\myMusic" 
+        Destination: "\\MyServer\MyMusic"
+        Both the source and destination will be verified, and if they do not exist, the script will ask for a new entry.
+        If in any subsequent run the configuration file contains an incorrect, non-existing path, the script ignore it, but prints out to make it visible.
+        The configuration file could contain comment lines, they should start with a hash sign (#).
     
+    Total Commander settings:
+        Execute command: C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe
+        Icon file: <chose what you like>
+        Start path: C:\Users\<YourUserID>\MusicTools\
+        Parameters: C:\Users\<YourUserID>\MusicTools\Backup-MusicLibrary.ps1
+
+        In this case it is pretty simple as it does not require any parameters from Total Commander.
+
 .INPUTS
   None
 
@@ -18,13 +34,13 @@
   None
 
 .NOTES
-  Version:        0.1
+  Version:        0.9
   Author:         Geri
   Creation Date:  2024.11.11
-  Purpose/Change: 
+  Purpose/Change: 2025.01.07 - Making ready for sharing
 
 .EXAMPLE
-    -- ToDo --
+    C:\Users\<YourUserID>\MusicTools\Backup-MusicLibrary.ps1 
   
 #>
 
@@ -210,7 +226,6 @@ function Convert-ShortcutToUNC {
             $newShortcut.Save()
 
             Write-Host -ForegroundColor Green "Shortcut created: $newLnkPath"
-            Set-Location -Path "$($newLnkPath)"
         } catch {
             Write-Host -ForegroundColor Red "Error creating shortcut for: $originalLnkPath"
             Write-Host -ForegroundColor Red $_.Exception.Message

@@ -15,6 +15,14 @@
   
   Next time you open a PowerShell terminal, you can call simply 'cpl C:\MyMusicLibrary'
 
+  If you set the button in the commander to run the script, you can use it with a single click. It is VERY important to
+    strictly use the following format in the Commander configuration:
+
+    Execute command: C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe
+    Icon file: <chose what you like>
+    Start path: C:\Users\<YourUserID>\MusicTools\
+    Parameters: C:\Users\<YourUserID>\MusicTools\Add-PlayLists.ps1 -w \"%P \"
+
 .PARAMETER startPath
 	The top folder where the script should start for music files. If non give, it will use the current directory.
 
@@ -31,10 +39,10 @@
   None
 
 .NOTES
-  Version:        0.9
+  Version:        0.9.1
   Author:         Geri
   Creation Date:  2024.05.23
-  Purpose/Change: Beta version
+  Purpose/Change: 2025.01.07 - Making ready for sharing
 
   
 
@@ -42,26 +50,23 @@
   Create-PlayLists.ps1 C:\MyMusicLibrary
   
 #>
-
+#-------------------------------------------------------[Parameter Handling]-------------------------------------------------------
 param (
-        [Parameter(Mandatory=$false)]
-        [string]$startPath,
-		[switch]$force,
-		[switch]$delete
-    )
-	
-
-$runTimeTXT = "Runtime: "
-$startTime = Get-Date
-$Global:createdPL = 0
-$Global:deletedPL = 0
-$Global:skipped = 0
-$Global:existing = 0
-$Global:albums = 0
-$Global:isoAlbums = 0
-
-$isVerbose = $PSCmdlet.MyInvocation.BoundParameters["Verbose"].IsPresent
-if(!$isVerbose){Write-Host "Running..."}
+    [Parameter(Mandatory=$false)]
+    [string]$startPath,
+    [switch]$force,
+    [switch]$delete
+)
+#-----------------------------------------------------------[Functions]------------------------------------------------------------
+function Start-Waiting {
+    Write-Host -ForegroundColor Yellow "Press any key to continue..."
+    while ($true) {
+        if ($Host.UI.RawUI.KeyAvailable) {
+            [void]$Host.UI.RawUI.ReadKey("NoEcho, IncludeKeyDown")
+            break
+        }
+    }   
+}
 
 function CreatePlaylistForDirectory {
     param (
@@ -140,7 +145,7 @@ function TraverseDirectories {
     )
 
     # Create a playlist for the root directory
-    CreatePlaylistForDirectory -directoryPath $rootPath
+    CreatePlaylistForDirectory -directoryPath "$rootPath"
 
     # Recursively traverse each subdirectory and create playlists
     $directories = Get-ChildItem -LiteralPath $rootPath -Directory -Recurse
@@ -150,10 +155,30 @@ function TraverseDirectories {
     }
 }
 
+#----------------------------------------------------------[Declarations]----------------------------------------------------------
+$runTimeTXT = "Runtime: "
+$startTime = Get-Date
+$Global:createdPL = 0
+$Global:deletedPL = 0
+$Global:skipped = 0
+$Global:existing = 0
+$Global:albums = 0
+$Global:isoAlbums = 0
+
+#-----------------------------------------------------------[Main]------------------------------------------------------------
+$isVerbose = $PSCmdlet.MyInvocation.BoundParameters["Verbose"].IsPresent
+if(!$isVerbose){Write-Host "Running..."}
+
+# Next line is only for tshoting
+# Write-Host "Working dir: $startPath" # Uncomment if needed
+
 # Starting directory path, if no parameter was given, it takes the current dir
 if(!$startPath){
 	$startPath = $PWD
 }
+
+# For some reason "Unreal Commander" puts a space character at the end of the path, we have to cut it off if it is there...
+$startPath = $startPath -replace ' ?$'
 
 # Begin the traversal and playlist creation process
 TraverseDirectories -rootPath $startPath
@@ -166,8 +191,4 @@ Write-Host "Number of total albums:" $Global:albums"," $Global:isoAlbums" are in
 $endTime = Get-Date
 $runTime = [Math]::Round((New-TimeSpan -Start $startTime -end $endTime).totalseconds,2)
 Write-Host $runTimeTXT$runTime "seconds."
-while ($true) {
-    if ($Host.UI.RawUI.KeyAvailable) {
-        break
-    }
-}
+Start-Waiting

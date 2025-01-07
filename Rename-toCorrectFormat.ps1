@@ -25,28 +25,38 @@
   Version:        1.0
   Author:         Geri
   Creation Date:  2024.12.06
-  Purpose/Change: 
+  Purpose/Change: 2025.01.07 - Making ready for sharing
 
 .EXAMPLE
     Rename-toCorrectFormat.ps1 -w "C:\myFolder\myMusic" -f "1. Loud Song.flac 2. Quiet Song.flac"
   
 #>
-
+#-------------------------------------------------------[Parameter Handling]-------------------------------------------------------
 [CmdletBinding()] # For using the common parameters
     Param (
 		[Parameter(Mandatory=$true)]
 		[string]$workingDir,
 		[string]$fileList
 	)
+#-----------------------------------------------------------[Functions]------------------------------------------------------------
+function Start-Waiting {
+    Write-Host -ForegroundColor Yellow "Press any key to continue..."
+    while ($true) {
+        if ($Host.UI.RawUI.KeyAvailable) {
+            [void]$Host.UI.RawUI.ReadKey("NoEcho, IncludeKeyDown")
+            break
+        }
+    }   
+}
 
 # Unreal Commander passes the parameters with a space at the end. We cut that off,
 #   with a regex, so in case it is passed without it, it will not cause an issue.
-Write-Host "List first: '$fileList'" # This line might need for tshooting
+# Write-Host "List first: '$fileList'" # This line might need for tshooting
 $workingDir = $workingDir -replace ' ?$'
 $fileList = $fileList -replace ' ?$'
 $noMatch = 0 
 
-Write-Host "List: '$fileList'" # This line might need for tshooting
+# Write-Host "List: '$fileList'" # This line might need for tshooting
 # We specify the possible file types.
 # If you want to handle more file formats, just add here in the same manner
 $fileFormats = @("flac", "dsd", "dsf", "mp3", "wav", "ape") 
@@ -57,7 +67,7 @@ $fileListArray = @()
 # Loop through formats to split the file list
 foreach ($fileFormat in $fileFormats) {
     if ($fileList -match "$fileFormat") {
-        Write-Output "The file '$fileList' is a $fileFormat file."
+        # Write-Output "The file '$fileList' is a $fileFormat file." # This line might need for tshooting
         $fileListArray = $fileList -split "(?<=$fileFormat) "
         break
     }
@@ -66,24 +76,29 @@ foreach ($fileFormat in $fileFormats) {
 # "Default" case if no selector matched
 if (-not $fileListArray) {
     Write-Output "The files '$fileList' does not match any known format."
-    Start-Sleep -s 20
+    Start-Waiting
 }
 
 #$fileListArray | ForEach-Object { Write-Host $_ } # This line was used only during development
 
 # We step through the files, and rename them
 $fileListArray | ForEach-Object { 
-	Write-Host "working on: $_ "
+	# Write-Host "working on: $_ " # This line might need for tshooting
     $newName = $_
 
     $patterns = @(
-        @{ Pattern = '(^\d\d)( - )(.*)'; Replace = '$1 gsign $3' },
+        # The patterns to match. Originally I had one only, but I realized,
+        #    that I have to use multiple patterns with exact matches, and explicitely
+        #    defining what should be done in that case.
+        # The 'gsign' is a temporary string, that will be replaced with a dash later, 
+        #    this is the easiest way. You can add your own pattern, if this is not enough.
+        @{ Pattern = '(^\d\d)( - )(.*)'; Replace = '$1 gsign $3' }, # this might look weird, but it is needed for to replace 'gsign' with a dash
         @{ Pattern = '(^\d\d)(, )(.*)'; Replace = '$1 gsign $3' },
         @{ Pattern = '(^\d\d)(\. )(.*)'; Replace = '$1 gsign $3' },
         @{ Pattern = '(^\d)(\. )(.*)'; Replace = '0$1 gsign $3' },
         @{ Pattern = '(^\d\d\d)(\. )(.*)'; Replace = '$1 gsign $3' },
-        @{ Pattern = '(^\d\d\d)( - )(.*)'; Replace = '$1 gsign $3' },
-        @{ Pattern = '(^\d\d)( )(\w.*)'; Replace = '$1 gsign $3' },
+        @{ Pattern = '(^\d\d\d)( - )(.*)'; Replace = '$1 gsign $3' }, # this might look weird, but it is needed for to replace 'gsign' with a dash
+        @{ Pattern = '(^\d\d)( )(\w.*)'; Replace = '$1 gsign $3' }, 
         @{ Pattern = '(^\d\d)(-)(.*)'; Replace = '$1 gsign $3' },
         @{ Pattern = '(^\d)( - )(.*)'; Replace = '0$1 gsign $3' },
         @{ Pattern = '(^\d)( )(\w.*)'; Replace = '0$1 gsign $3' }
@@ -129,9 +144,5 @@ $fileListArray | ForEach-Object {
 Write-Host "Done"
 if($noMatch -gt 0){ # There is a message that the user should read...
     Write-Host -ForegroundColor Red "`nThere were issues, please read the output.`nPress any key to exit..."
-    while ($true) {
-        if ($Host.UI.RawUI.KeyAvailable) {
-            break
-        }
-    }
+    Start-Waiting
 }
