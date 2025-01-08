@@ -73,7 +73,7 @@ function Set-ConfigFile {
     }
 
     # Write path pairs to the config file
-    if ($pathPairs.Count -gt 0 -and $pathPairs[0] -ne '# SourcePath|DestinationPath file created by Install-MusicTools script.') {
+    if ($pathPairs.Count -gt 1) {
         $pathPairs | Out-File -FilePath $configFilePath -Encoding UTF8
         Write-Output "Configuration file created at $configFilePath with the following entries:"
         $pathPairs | ForEach-Object { Write-Output $_ }
