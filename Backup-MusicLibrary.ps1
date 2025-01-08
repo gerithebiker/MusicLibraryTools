@@ -51,14 +51,17 @@
 # This file is stored in the user's profile directory, and it is lodated here: "$env:USERPROFILE\MusicTools\SourceDestinationPairs.txt"
 
 #-----------------------------------------------------------[Functions]------------------------------------------------------------
-function Start-Waiting {
-    Write-Host -ForegroundColor Yellow "Press any key to continue..."
-    while ($true) {
-        if ($Host.UI.RawUI.KeyAvailable) {
-            [void]$Host.UI.RawUI.ReadKey("NoEcho, IncludeKeyDown")
-            break
-        }
-    }   
+# Define the path to the library script
+$LibraryPath = "$env:USERPROFILE\MusicTools\MusicTools.Library.psm1"
+
+# Import the library module
+if (Test-Path -Path $LibraryPath) {
+    Import-Module -Name $LibraryPath
+    Write-Host "MusicTools library module imported successfully."
+} else {
+    Write-Warning "Library module not found at '$LibraryPath'. Ensure it exists before running this script."
+    Start-Sleep -Seconds 15
+    exit 1
 }
 
 function Get-ShortcutDetails {
@@ -105,50 +108,6 @@ function Get-ShortcutDetails {
     }
 }
 
-function Set-ConfigFile {
-    param (
-        [string]$configFile  # Path to the configuration file
-    )
-
-    $pathPairs = @()
-
-    while ($true) {
-        # Prompt for SourcePath
-        $sourcePath = Read-Host "Enter SourcePath or type 'done' or hit enter"
-
-        if ($sourcePath -eq 'done' -or $sourcePath -eq '') {
-            break
-        }
-
-        # Validate SourcePath exists
-        if (-not (Test-Path -Path $sourcePath)) {
-            Write-Host -ForegroundColor Red "SourcePath '$sourcePath' does not exist. Please try again."
-            continue
-        }
-
-        # Prompt for DestinationPath
-        $destinationPath = Read-Host "Enter DestinationPath"
-
-        # Validate DestinationPath exists
-        if (-not (Test-Path -Path $destinationPath)) {
-            Write-Host -ForegroundColor Red "DestinationPath '$destinationPath' does not exist. Please try again."
-            continue
-        }
-
-        # Add the validated path pair to the array
-        $pathPairs += "$sourcePath|$destinationPath"
-    }
-
-    # Write path pairs to the config file
-    if ($pathPairs.Count -gt 0) {
-        $pathPairs | Out-File -FilePath $configFile -Encoding UTF8
-        Write-Output "Configuration file created at $configFile with the following entries:"
-        $pathPairs | ForEach-Object { Write-Output $_ }
-    } else {
-        Write-Output "No valid path pairs were entered. Exiting..."
-    }
-    return
-}
 function Convert-ShortcutToUNC {
     param (
         [string]$sourcePath,
