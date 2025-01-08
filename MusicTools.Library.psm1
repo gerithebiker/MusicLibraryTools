@@ -46,7 +46,7 @@ function Set-ConfigFile {
 
     while ($true) {
         # Prompt for SourcePath
-        $sourcePath = Read-Host "Enter SourcePath number $counter or type 'done' or hit enter"
+        $sourcePath = Read-Host "Enter SourcePath number $counter or type 'done' or hit enter: "
 
         if ($sourcePath -eq 'done' -or $sourcePath -eq '') {
             break
@@ -59,7 +59,7 @@ function Set-ConfigFile {
         }
 
         # Prompt for DestinationPath
-        $destinationPath = Read-Host "Enter DestinationPath"
+        $destinationPath = Read-Host "Enter DestinationPath number ${counter}: "
 
         # Validate DestinationPath exists
         if (-not (Test-Path -Path $destinationPath)) {
