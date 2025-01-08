@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MusicTools Installer</title>
+</head>
+<body>
+    <h1>MusicTools Installer</h1>
+    <p>Click the button below to download and run the MusicTools installation script.</p>
+    <button id="installButton">Download and Install</button>
+
+    <script>
+        document.getElementById('installButton').addEventListener('click', () => {
+            const scriptUrl = "https://raw.githubusercontent.com/gerithebiker/MusicTools/main/Install-MusicTools.ps1";
+
+            // Create a download link
+            const a = document.createElement('a');
+            a.href = scriptUrl;
+            a.download = "Install-MusicTools.ps1";
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+
+            alert("Script downloaded! Please run 'Install-MusicTools.ps1' in PowerShell to proceed.");
+        });
+    </script>
+</body>
+</html>
