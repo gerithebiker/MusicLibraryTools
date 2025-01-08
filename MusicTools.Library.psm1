@@ -41,6 +41,7 @@ function Set-ConfigFile {
     )
 
     $pathPairs = @()
+    $pathPairs += "# SourcePath|DestinationPath file created by Install-MusicTools script." 
 
     while ($true) {
         # Prompt for SourcePath
