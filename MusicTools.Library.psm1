@@ -42,10 +42,11 @@ function Set-ConfigFile {
 
     $pathPairs = @()
     $pathPairs += "# SourcePath|DestinationPath file created by Install-MusicTools script." 
+    $counter = 1
 
     while ($true) {
         # Prompt for SourcePath
-        $sourcePath = Read-Host "Enter SourcePath or type 'done' or hit enter"
+        $sourcePath = Read-Host "Enter SourcePath number $counter or type 'done' or hit enter"
 
         if ($sourcePath -eq 'done' -or $sourcePath -eq '') {
             break
@@ -68,10 +69,11 @@ function Set-ConfigFile {
 
         # Add the validated path pair to the array
         $pathPairs += "$sourcePath|$destinationPath"
+        $counter++
     }
 
     # Write path pairs to the config file
-    if ($pathPairs.Count -gt 0) {
+    if ($pathPairs.Count -gt 0 -and $pathPairs[0] -ne '# SourcePath|DestinationPath file created by Install-MusicTools script.') {
         $pathPairs | Out-File -FilePath $configFilePath -Encoding UTF8
         Write-Output "Configuration file created at $configFilePath with the following entries:"
         $pathPairs | ForEach-Object { Write-Output $_ }
