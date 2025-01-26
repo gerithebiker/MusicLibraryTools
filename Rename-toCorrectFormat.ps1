@@ -106,13 +106,21 @@ $fileListArray | ForEach-Object {
 
     # Flag to check if a match was found
     $matched = $false
-
+    $replacePatterns = @(
+        " \(\d\d\d\d Remast.*\.$fileFormat"
+        " \(Recorded.*\.$fileFormat"
+        " \(Digit.*\.$fileFormat"
+        " \(Resto.*\.$fileFormat"
+        " \(Remast.*\.$fileFormat"
+        " \(Arr.*\.$fileFormat"
+        " \(Live.*\.$fileFormat"
+    )
     # Loop through patterns
     foreach ($entry in $patterns) {
         if ($newName -match $entry.Pattern) {
             $matched = $true
             $newName = $newName -replace $entry.Pattern, $entry.Replace
-            $newName = $newName -replace (" \(\d\d\d\d Remast.*\.$fileFormat| \(Digit.*\.$fileFormat| \(Resto.*\.$fileFormat| \(Remast.*\.$fileFormat| \(Live.*\.$fileFormat"),".$fileFormat"
+            $newName = $newName -replace ($replacePatterns -join "|"),".$fileFormat"
             $newName = $newName -replace ' _ ', '; '
             $newName = $newName -replace ' -', ', ' # I do not like - in the file names, except after the number, so replacing it with a ,
             $newName = $newName -replace '- ', ', '

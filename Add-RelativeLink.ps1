@@ -134,7 +134,7 @@ if($targetArray.Length -lt 4){
     Exit 1
 }
 $workingArray = $workingDir.split("\")
-$artist = $targetArray[$targetArray.length - 3] -replace " \{.*\}", ""
+$artist = $targetArray[$targetArray.length - 3] -replace "\{\s*[^,]+,\s*", "{"
 $linkName = $workingDir+$artist+", "+$targetArray[$targetArray.length - 2]+".lnk" 
 function New-RelativeShortcut {
     param (
