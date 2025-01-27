@@ -29,7 +29,7 @@
     before deletion.
 
 .EXAMPLE
-    .\Remove-Duplicates-Safely.ps1 -InputFile "duplicates_grouped.txt"
+    .\Remove-Duplicates-Safely.ps1 -InputFile "D_duplicates_grouped.txt"
 
     Reads `duplicates_grouped.txt` and deletes duplicate files **without confirmation**.
 

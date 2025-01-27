@@ -115,6 +115,10 @@ $duplicates = $hashes.GetEnumerator() | Where-Object { $_.Value.Count -gt 1 }
 # Hashtable for organizing grouped output by folder
 $folderGroups = @{}
 
+if($CSV) {
+    $csvData = @()
+}   
+
 foreach ($dup in $duplicates) {
     $fileList = $dup.Value
 
@@ -127,10 +131,29 @@ foreach ($dup in $duplicates) {
     # Store filenames under the grouped folder key
     if (-not $folderGroups.ContainsKey($folderKey)) {
         $folderGroups[$folderKey] = @()
+
+        # ✅ Add to Excel at the same time
+        if ($CSV) {
+            $csvData += [PSCustomObject]@{ FolderName = "*****************"; FileName = "" }
+            foreach ($folder in $folderList) {
+                $csvData += [PSCustomObject]@{ FolderName = $folder; FileName = "" }
+            }
+        }
     }
     
     # Add the unique filenames for this duplicate group
-    $folderGroups[$folderKey] += ($fileList | ForEach-Object { [System.IO.Path]::GetFileName($_) })
+    $uniqueFiles = $fileList | Sort-Object | Get-Unique
+    $folderGroups[$folderKey] += $uniqueFiles | ForEach-Object { [System.IO.Path]::GetFileName($_) }
+
+    # ✅ Also add files to Excel (while keeping the structure the same)
+    if ($CSV) {
+        foreach ($file in $uniqueFiles) {
+            $csvData += [PSCustomObject]@{
+                FolderName = ""  # ✅ Keep folder column empty for files
+                FileName  = [System.IO.Path]::GetFileName($file)  # ✅ File names go in the second column
+            }
+        }
+    }
 }
 
 # Write results to output files
