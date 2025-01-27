@@ -29,7 +29,7 @@
     before deletion.
 
 .EXAMPLE
-    .\Remove-Duplicates-Safely.ps1 -InputFile "duplicates_grouped.txt"
+    .\Remove-Duplicates-Safely.ps1 -InputFile "D_duplicates_grouped.txt"
 
     Reads `duplicates_grouped.txt` and deletes duplicate files **without confirmation**.
 
@@ -76,11 +76,6 @@ function Remove-Duplicates {
     )
 
     if ($dryRun) {
-        #Write-Host "`nDEBUG: Inside Remove-Duplicates - Processing Dry Run" -ForegroundColor Yellow
-        #Write-Host "DEBUG: Folders: $folders" -ForegroundColor Magenta
-        #Write-Host "DEBUG: Files: $files" -ForegroundColor Cyan
-        #Write-Host "`nThe following files will be deleted in a real run:" -ForegroundColor Yellow
-        #Write-Host $folders + ", " + $files
         foreach ($folder in $folders) {
             Write-Host "`n$folder" -ForegroundColor Magenta
             foreach ($file in $files) {

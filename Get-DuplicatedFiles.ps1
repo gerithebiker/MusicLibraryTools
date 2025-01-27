@@ -46,7 +46,9 @@ param (
     [string]$Path = "C:\",                              # Default to C:\ (change if needed)
     [string]$OutputFile = "duplicates_grouped.txt",     # Full output with file names
     [string]$FolderOnlyOutput = "duplicates_folders.txt", # Output containing only folder groups
-    [int]$MinFileSizeKB = 10                            # Ignore files smaller than 10KB (change if needed)
+    [int]$MinFileSizeKB = 10,                           # Ignore files smaller than 10KB (change if needed)
+    [switch]$CSV,                                       # Export to Excel (optional) 
+    [string[]]$DoNotScan                                # List of folders to exclude from scanning   
 )
 
 $runTimeTXT = "Runtime: "
@@ -62,6 +64,14 @@ if (-not (Test-Path -LiteralPath $Path)) {
     Write-Host "Error: Path '$Path' does not exist."
     exit 1
 }
+$LibraryPath = ".\MusicTools.Library.psm1" # This has to be updated in the final version
+if (Test-Path -Path $LibraryPath) {
+    Import-Module -Name $LibraryPath -Force
+    Write-Host "MusicTools library module imported successfully."
+} else {
+    Write-Warning "Library module not found at '$LibraryPath'. Ensure the repository includes it."
+    exit 1
+}
 
 # Hashtable to store hash -> file paths
 $hashes = @{}
@@ -69,7 +79,40 @@ $hashes = @{}
 Write-Host "Scanning files in $Path..."
 
 # Get all files (filtering by size for performance)
-$files = Get-ChildItem -LiteralPath $Path -Recurse -File #| Where-Object { $_.Length -gt ($MinFileSizeKB * 1KB) }
+# $files = Get-ChildItem -LiteralPath $Path -Recurse -File | Where-Object {
+#     ($MinFileSizeKB -eq 0 -or $_.Length -gt ($MinFileSizeKB * 1KB)) -and  # Allow scanning all files if 0 is given
+#     ($null -eq $DoNotScan -or -not ($DoNotScan | Where-Object { $_ -and $_ -ne "" -and $_.StartsWith($_.DirectoryName, [System.StringComparison]::OrdinalIgnoreCase) }))
+# }
+# ✅ Step 1: Collect all files first
+$allFiles = Get-ChildItem -LiteralPath $Path -Recurse -File
+
+# ✅ Step 2: Filter files AFTER collection
+$files = @()  # Initialize as an empty array
+foreach ($file in $allFiles) {
+    # ✅ Check minimum file size
+    if ($MinFileSizeKB -ne 0 -and $file.Length -le ($MinFileSizeKB * 1KB)) {
+        continue  # Skip small files
+    }
+
+    # ✅ Check if the file's directory is inside the excluded list
+    if ($DoNotScan) {
+        $excludeMatch = $false
+        foreach ($excludedPath in $DoNotScan) {
+            if ($excludedPath -and $excludedPath -ne "" -and $file.DirectoryName -match [regex]::Escape($excludedPath)) {
+                $excludeMatch = $true
+                break  # No need to check further exclusions
+            }
+        }
+        if ($excludeMatch) {
+            continue  # Skip this file
+        }
+    }
+
+    # ✅ If it passed both checks, add to final file list
+    $files += $file
+}
+
+############################################################################################################
 
 $totalFiles = $files.Count
 $processedFiles = 0
@@ -103,13 +146,17 @@ foreach ($file in $files) {
 }
 
 # Ensure progress bar is cleared after processing
-Write-Host "`rProcessing complete! `n"
+Write-Host "`rProcessing complete!                       `n"
 
 # Filter out unique files (keep only duplicates)
 $duplicates = $hashes.GetEnumerator() | Where-Object { $_.Value.Count -gt 1 }
 
 # Hashtable for organizing grouped output by folder
 $folderGroups = @{}
+
+if($CSV) {
+    $csvData = @()
+}   
 
 foreach ($dup in $duplicates) {
     $fileList = $dup.Value
@@ -118,30 +165,90 @@ foreach ($dup in $duplicates) {
     $folderList = $fileList | ForEach-Object { [System.IO.Path]::GetDirectoryName($_) } | Sort-Object -Unique
 
     # Convert folder array into multi-line format
-    $folderKey = "`r`n*****************`r`n" + ($folderList -join "`r`n")
+    $folderKey = $folderList -join "`r`n"
 
     # Store filenames under the grouped folder key
     if (-not $folderGroups.ContainsKey($folderKey)) {
         $folderGroups[$folderKey] = @()
+
+        # ✅ Add to Excel at the same time
+        if ($CSV) {
+            $csvData += [PSCustomObject]@{ FolderName = "*****************"; FileName = "" }
+            foreach ($folder in $folderList) {
+                $csvData += [PSCustomObject]@{ FolderName = $folder; FileName = "" }
+            }
+        }
     }
     
     # Add the unique filenames for this duplicate group
-    $folderGroups[$folderKey] += ($fileList | ForEach-Object { [System.IO.Path]::GetFileName($_) })
+    $uniqueFiles = $fileList | Sort-Object | Get-Unique
+    $folderGroups[$folderKey] += $uniqueFiles | ForEach-Object { [System.IO.Path]::GetFileName($_) }
 }
 
 # Write results to output files
+Write-Host "Found $(@($duplicates).Count) duplicate files in $processedFiles files."
 Write-Host "Writing results to $OutputFile and $FolderOnlyOutput..."
-"" | Out-File -LiteralPath $OutputFile  # Clear previous content
-"" | Out-File -LiteralPath $FolderOnlyOutput  # Clear previous content
+if(Test-Path -LiteralPath $OutputFile) { Remove-Item -LiteralPath $OutputFile } # Clear previous content
+if(Test-Path -LiteralPath $FolderOnlyOutput) { Remove-Item -LiteralPath $FolderOnlyOutput}  # Clear previous content
 
-foreach ($folderKey in $folderGroups.Keys | Sort-Object) {
-    # Write the folder grouping (one per line with a divider)
-    "$folderKey`r`n" | Out-File -LiteralPath $OutputFile -Append
-    "$folderKey`r`n" | Out-File -LiteralPath $FolderOnlyOutput -Append
-    
-    # Write the filenames under the folder grouping (only in full output)
-    $folderGroups[$folderKey] | Sort-Object | Get-Unique | ForEach-Object { "    $_" } | Out-File -LiteralPath $OutputFile -Append
+if ($folderGroups.Count -gt 0) { 
+    $groupCounter = 0
+    foreach ($folderKey in $folderGroups.Keys | Sort-Object) {
+        Write-Host "`rWriting folder group $folderKey..." 
+        if($groupCounter -gt 0) {
+            "`r`n***************" | Out-File -LiteralPath $OutputFile -Append
+            "`r`n***************" | Out-File -LiteralPath $FolderOnlyOutput -Append
+        }
+        # Write the folder grouping (one per line with a divider)
+        "$folderKey`r`n" | Out-File -LiteralPath $OutputFile -Append
+        "$folderKey`r`n" | Out-File -LiteralPath $FolderOnlyOutput -Append
+        
+        # Write the filenames under the folder grouping (only in full output)
+        $folderGroups[$folderKey] | Sort-Object | Get-Unique | ForEach-Object { "    $_" } | Out-File -LiteralPath $OutputFile -Append
+        $groupCounter++
+    }
+
+    if ($CSV) {
+        $excelFile = [System.IO.Path]::ChangeExtension($OutputFile, ".xlsx")
+        $baseName = $excelFile -replace "\.xlsx$", ""
+        write-host "Exporting to Excel: $excelFile" -ForegroundColor Green
+
+        function Test-FileLocked {
+            param ([string]$FilePath)
+            $myFile = Resolve-Path $FilePath
+            write-host "Checking if file is locked: $myFile"
+            try {
+                write-host "Trying to open file..."
+                $fs = [System.IO.File]::Open($myFile, 'Open', 'Write')
+                write-host "File is not locked."
+                $fs.Close()
+                write-host "removing file..."
+                Remove-Item -Force $FilePath
+                return $false  # File is NOT locked
+            } catch {
+                return $true   # File is locked
+            }
+        }
+
+        # Check if the Excel file is locked and rename if needed
+        $counter = 1
+        while ((Test-Path $excelFile) -and (Test-FileLocked -FilePath $excelFile)) {
+            write-host "File is locked or already exists: $excelFile" -ForegroundColor Magenta
+            $excelFile = "$baseName`_($counter).xlsx"
+            $counter++
+        }
+        # Export to Excel with automatic table formatting
+        # It this case the names are a bit misleading... The "OutputFile" output for the text export, but input for the Excel export
+        Write-Host "variables: $OutputFile, $excelFile"
+        get-content $OutputFile
+        Convert-TextToExcel -InputFile $OutputFile -OutputFile $excelFile 
+
+        Write-Host "Excel Exported: $excelFile"
+    } 
+} else {
+    Write-Host "No duplicate files found. No output files generated."
 }
+
 
 
 #----------------------------------------------------------[Completion]----------------------------------------------------------

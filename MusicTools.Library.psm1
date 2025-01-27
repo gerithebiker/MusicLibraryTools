@@ -82,3 +82,46 @@ function Set-ConfigFile {
     }
     return
 }
+
+function Convert-TextToExcel {
+    param (
+        [string]$InputFile,
+        [string]$OutputFile
+    )
+
+    # Ensure ImportExcel module is installed
+    if (-not (Get-Module -ListAvailable -Name ImportExcel)) {
+        Write-Error "The ImportExcel module is not installed. Install it using: Install-Module -Name ImportExcel"
+        return
+    }
+
+    # Ensure the input file exists
+    if (!(Test-Path $InputFile)) {
+        Write-Error "Input file not found: $InputFile"
+        return
+    }
+
+    # Read the text file
+    $lines = Get-Content -Path $InputFile
+
+    # Prepare data for Export-Excel
+    $data = @()
+
+    # Read and process each line from the input file
+    Get-Content -Path $InputFile | ForEach-Object {
+        $item = New-Object PSObject
+        if ($_ -match "^\s{4}") {
+            $item | Add-Member -MemberType NoteProperty -Name "Path" -Value ""
+            $item | Add-Member -MemberType NoteProperty -Name "FileName" -Value $_.TrimStart()
+        } else {
+            $item | Add-Member -MemberType NoteProperty -Name "Path" -Value $_
+            $item | Add-Member -MemberType NoteProperty -Name "FileName" -Value ""
+        }
+        $data += $item
+    }
+
+    # Export the data to Excel using Export-Excel with -AutoSize, -FreezeTopRow, and -BoldTopRow
+    $data | Export-Excel -Path $OutputFile -AutoSize -FreezeTopRow -BoldTopRow -TableName "Data"
+
+    Write-Host "Excel file created successfully: $OutputFile"
+}
