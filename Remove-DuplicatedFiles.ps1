@@ -76,11 +76,6 @@ function Remove-Duplicates {
     )
 
     if ($dryRun) {
-        #Write-Host "`nDEBUG: Inside Remove-Duplicates - Processing Dry Run" -ForegroundColor Yellow
-        #Write-Host "DEBUG: Folders: $folders" -ForegroundColor Magenta
-        #Write-Host "DEBUG: Files: $files" -ForegroundColor Cyan
-        #Write-Host "`nThe following files will be deleted in a real run:" -ForegroundColor Yellow
-        #Write-Host $folders + ", " + $files
         foreach ($folder in $folders) {
             Write-Host "`n$folder" -ForegroundColor Magenta
             foreach ($file in $files) {

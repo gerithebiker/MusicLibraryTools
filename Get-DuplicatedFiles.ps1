@@ -47,7 +47,8 @@ param (
     [string]$OutputFile = "duplicates_grouped.txt",     # Full output with file names
     [string]$FolderOnlyOutput = "duplicates_folders.txt", # Output containing only folder groups
     [int]$MinFileSizeKB = 10,                           # Ignore files smaller than 10KB (change if needed)
-    [switch]$CSV    
+    [switch]$CSV,                                       # Export to Excel (optional) 
+    [string[]]$DoNotScan                                # List of folders to exclude from scanning   
 )
 
 $runTimeTXT = "Runtime: "
@@ -61,6 +62,14 @@ $FolderOnlyOutput = $drive + $FolderOnlyOutput
 # Ensure the path exists
 if (-not (Test-Path -LiteralPath $Path)) {
     Write-Host "Error: Path '$Path' does not exist."
+    exit 1
+}
+$LibraryPath = ".\MusicTools.Library.psm1" # This has to be updated in the final version
+if (Test-Path -Path $LibraryPath) {
+    Import-Module -Name $LibraryPath -Force
+    Write-Host "MusicTools library module imported successfully."
+} else {
+    Write-Warning "Library module not found at '$LibraryPath'. Ensure the repository includes it."
     exit 1
 }
 
@@ -144,16 +153,6 @@ foreach ($dup in $duplicates) {
     # Add the unique filenames for this duplicate group
     $uniqueFiles = $fileList | Sort-Object | Get-Unique
     $folderGroups[$folderKey] += $uniqueFiles | ForEach-Object { [System.IO.Path]::GetFileName($_) }
-
-    # ✅ Also add files to Excel (while keeping the structure the same)
-    if ($CSV) {
-        foreach ($file in $uniqueFiles) {
-            $csvData += [PSCustomObject]@{
-                FolderName = ""  # ✅ Keep folder column empty for files
-                FileName  = [System.IO.Path]::GetFileName($file)  # ✅ File names go in the second column
-            }
-        }
-    }
 }
 
 # Write results to output files
@@ -186,11 +185,15 @@ if ($folderGroups.Count -gt 0) {
 
         function Test-FileLocked {
             param ([string]$FilePath)
-            write-host "Checking if file is locked: $FilePath"
+            $myFile = Resolve-Path $FilePath
+            write-host "Checking if file is locked: $myFile"
             try {
-                $fs = [System.IO.File]::Open($FilePath, 'Open', 'Write')
+                write-host "Trying to open file..."
+                $fs = [System.IO.File]::Open($myFile, 'Open', 'Write')
+                write-host "File is not locked."
                 $fs.Close()
-                Remove-Item -Force $excelFile
+                write-host "removing file..."
+                Remove-Item -Force $FilePath
                 return $false  # File is NOT locked
             } catch {
                 return $true   # File is locked
@@ -199,13 +202,16 @@ if ($folderGroups.Count -gt 0) {
 
         # Check if the Excel file is locked and rename if needed
         $counter = 1
-            while ((Test-Path $excelFile) -and (Test-FileLocked -FilePath $excelFile)) {
-                write-host "File is locked or already exists: $excelFile" -ForegroundColor Yellow
-                $excelFile = "$baseName`_($counter).xlsx"
-                $counter++
-            }
+        while ((Test-Path $excelFile) -and (Test-FileLocked -FilePath $excelFile)) {
+            write-host "File is locked or already exists: $excelFile" -ForegroundColor Magenta
+            $excelFile = "$baseName`_($counter).xlsx"
+            $counter++
+        }
         # Export to Excel with automatic table formatting
-        $csvData | Export-Excel -Path $excelFile -TableName "Duplicates" -AutoSize -FreezeTopRow
+        # It this case the names are a bit misleading... The "OutputFile" output for the text export, but input for the Excel export
+        Write-Host "variables: $OutputFile, $excelFile"
+        get-content $OutputFile
+        Convert-TextToExcel -InputFile $OutputFile -OutputFile $excelFile 
 
         Write-Host "Excel Exported: $excelFile"
     } 
