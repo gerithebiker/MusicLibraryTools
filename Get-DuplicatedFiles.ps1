@@ -79,10 +79,40 @@ $hashes = @{}
 Write-Host "Scanning files in $Path..."
 
 # Get all files (filtering by size for performance)
-$files = Get-ChildItem -LiteralPath $Path -Recurse -File | Where-Object {
-    ($MinFileSizeKB -eq 0 -or $_.Length -gt ($MinFileSizeKB * 1KB)) -and  # Allow scanning all files if 0 is given
-    ($null -eq $DoNotScan -or -not ($DoNotScan | Where-Object { $_ -and $_ -ne "" -and $_.StartsWith($_.DirectoryName, [System.StringComparison]::OrdinalIgnoreCase) }))
+# $files = Get-ChildItem -LiteralPath $Path -Recurse -File | Where-Object {
+#     ($MinFileSizeKB -eq 0 -or $_.Length -gt ($MinFileSizeKB * 1KB)) -and  # Allow scanning all files if 0 is given
+#     ($null -eq $DoNotScan -or -not ($DoNotScan | Where-Object { $_ -and $_ -ne "" -and $_.StartsWith($_.DirectoryName, [System.StringComparison]::OrdinalIgnoreCase) }))
+# }
+# ✅ Step 1: Collect all files first
+$allFiles = Get-ChildItem -LiteralPath $Path -Recurse -File
+
+# ✅ Step 2: Filter files AFTER collection
+$files = @()  # Initialize as an empty array
+foreach ($file in $allFiles) {
+    # ✅ Check minimum file size
+    if ($MinFileSizeKB -ne 0 -and $file.Length -le ($MinFileSizeKB * 1KB)) {
+        continue  # Skip small files
+    }
+
+    # ✅ Check if the file's directory is inside the excluded list
+    if ($DoNotScan) {
+        $excludeMatch = $false
+        foreach ($excludedPath in $DoNotScan) {
+            if ($excludedPath -and $excludedPath -ne "" -and $file.DirectoryName -match [regex]::Escape($excludedPath)) {
+                $excludeMatch = $true
+                break  # No need to check further exclusions
+            }
+        }
+        if ($excludeMatch) {
+            continue  # Skip this file
+        }
+    }
+
+    # ✅ If it passed both checks, add to final file list
+    $files += $file
 }
+
+############################################################################################################
 
 $totalFiles = $files.Count
 $processedFiles = 0
