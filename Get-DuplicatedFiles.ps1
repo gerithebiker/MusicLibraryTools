@@ -46,7 +46,8 @@ param (
     [string]$Path = "C:\",                              # Default to C:\ (change if needed)
     [string]$OutputFile = "duplicates_grouped.txt",     # Full output with file names
     [string]$FolderOnlyOutput = "duplicates_folders.txt", # Output containing only folder groups
-    [int]$MinFileSizeKB = 10                            # Ignore files smaller than 10KB (change if needed)
+    [int]$MinFileSizeKB = 10,                           # Ignore files smaller than 10KB (change if needed)
+    [switch]$CSV    
 )
 
 $runTimeTXT = "Runtime: "
@@ -69,7 +70,10 @@ $hashes = @{}
 Write-Host "Scanning files in $Path..."
 
 # Get all files (filtering by size for performance)
-$files = Get-ChildItem -LiteralPath $Path -Recurse -File #| Where-Object { $_.Length -gt ($MinFileSizeKB * 1KB) }
+$files = Get-ChildItem -LiteralPath $Path -Recurse -File | Where-Object {
+    ($MinFileSizeKB -eq 0 -or $_.Length -gt ($MinFileSizeKB * 1KB)) -and  # Allow scanning all files if 0 is given
+    ($null -eq $DoNotScan -or -not ($DoNotScan | Where-Object { $_ -and $_ -ne "" -and $_.StartsWith($_.DirectoryName, [System.StringComparison]::OrdinalIgnoreCase) }))
+}
 
 $totalFiles = $files.Count
 $processedFiles = 0
@@ -103,7 +107,7 @@ foreach ($file in $files) {
 }
 
 # Ensure progress bar is cleared after processing
-Write-Host "`rProcessing complete! `n"
+Write-Host "`rProcessing complete!                       `n"
 
 # Filter out unique files (keep only duplicates)
 $duplicates = $hashes.GetEnumerator() | Where-Object { $_.Value.Count -gt 1 }
@@ -118,7 +122,7 @@ foreach ($dup in $duplicates) {
     $folderList = $fileList | ForEach-Object { [System.IO.Path]::GetDirectoryName($_) } | Sort-Object -Unique
 
     # Convert folder array into multi-line format
-    $folderKey = "`r`n*****************`r`n" + ($folderList -join "`r`n")
+    $folderKey = $folderList -join "`r`n"
 
     # Store filenames under the grouped folder key
     if (-not $folderGroups.ContainsKey($folderKey)) {
@@ -130,18 +134,62 @@ foreach ($dup in $duplicates) {
 }
 
 # Write results to output files
+Write-Host "Found $(@($duplicates).Count) duplicate files in $processedFiles files."
 Write-Host "Writing results to $OutputFile and $FolderOnlyOutput..."
-"" | Out-File -LiteralPath $OutputFile  # Clear previous content
-"" | Out-File -LiteralPath $FolderOnlyOutput  # Clear previous content
+if(Test-Path -LiteralPath $OutputFile) { Remove-Item -LiteralPath $OutputFile } # Clear previous content
+if(Test-Path -LiteralPath $FolderOnlyOutput) { Remove-Item -LiteralPath $FolderOnlyOutput}  # Clear previous content
 
-foreach ($folderKey in $folderGroups.Keys | Sort-Object) {
-    # Write the folder grouping (one per line with a divider)
-    "$folderKey`r`n" | Out-File -LiteralPath $OutputFile -Append
-    "$folderKey`r`n" | Out-File -LiteralPath $FolderOnlyOutput -Append
-    
-    # Write the filenames under the folder grouping (only in full output)
-    $folderGroups[$folderKey] | Sort-Object | Get-Unique | ForEach-Object { "    $_" } | Out-File -LiteralPath $OutputFile -Append
+if ($folderGroups.Count -gt 0) { 
+    $groupCounter = 0
+    foreach ($folderKey in $folderGroups.Keys | Sort-Object) {
+        Write-Host "`rWriting folder group $folderKey..." 
+        if($groupCounter -gt 0) {
+            "`r`n***************" | Out-File -LiteralPath $OutputFile -Append
+            "`r`n***************" | Out-File -LiteralPath $FolderOnlyOutput -Append
+        }
+        # Write the folder grouping (one per line with a divider)
+        "$folderKey`r`n" | Out-File -LiteralPath $OutputFile -Append
+        "$folderKey`r`n" | Out-File -LiteralPath $FolderOnlyOutput -Append
+        
+        # Write the filenames under the folder grouping (only in full output)
+        $folderGroups[$folderKey] | Sort-Object | Get-Unique | ForEach-Object { "    $_" } | Out-File -LiteralPath $OutputFile -Append
+        $groupCounter++
+    }
+
+    if ($CSV) {
+        $excelFile = [System.IO.Path]::ChangeExtension($OutputFile, ".xlsx")
+        $baseName = $excelFile -replace "\.xlsx$", ""
+        write-host "Exporting to Excel: $excelFile" -ForegroundColor Green
+
+        function Test-FileLocked {
+            param ([string]$FilePath)
+            write-host "Checking if file is locked: $FilePath"
+            try {
+                $fs = [System.IO.File]::Open($FilePath, 'Open', 'Write')
+                $fs.Close()
+                Remove-Item -Force $excelFile
+                return $false  # File is NOT locked
+            } catch {
+                return $true   # File is locked
+            }
+        }
+
+        # Check if the Excel file is locked and rename if needed
+        $counter = 1
+            while ((Test-Path $excelFile) -and (Test-FileLocked -FilePath $excelFile)) {
+                write-host "File is locked or already exists: $excelFile" -ForegroundColor Yellow
+                $excelFile = "$baseName`_($counter).xlsx"
+                $counter++
+            }
+        # Export to Excel with automatic table formatting
+        $csvData | Export-Excel -Path $excelFile -TableName "Duplicates" -AutoSize -FreezeTopRow
+
+        Write-Host "Excel Exported: $excelFile"
+    } 
+} else {
+    Write-Host "No duplicate files found. No output files generated."
 }
+
 
 
 #----------------------------------------------------------[Completion]----------------------------------------------------------
