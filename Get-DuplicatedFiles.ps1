@@ -125,11 +125,25 @@ foreach ($file in $files) {
     }
 
     $processedFiles++
-    $progress = [math]::Floor(($processedFiles / $totalFiles) * 100)
-    
-    # Overwriting progress indicator
-    Write-Host "`rProcessing files: $processedFiles / $totalFiles ($progress%)" -NoNewline
+    $consoleWidth = [console]::WindowWidth
 
+    # ✅ Calculate the length of the progress counter text dynamically
+    $progressText = "Processing files: $processedFiles / $totalFiles ($progress%)"
+    $progressLength = $progressText.Length
+    
+    # ✅ Reserve space for progress text, ensuring file names fit within the remaining space
+    $maxTextWidth = $consoleWidth - $progressLength - 5  # Extra buffer for safety
+    
+    $clearLine = "`r" + (" " * ($consoleWidth - 1)) + "`r"  # Clear the whole line
+    
+    # ✅ Truncate long file names to fit
+    $fileName = $file.FullName
+    if ($fileName.Length -gt $maxTextWidth) {
+        $fileName = $fileName.Substring(0, $maxTextWidth - 3) + "..."  # Truncate with "..."
+    }
+    
+    Write-Host "$clearLine`r$progressText $fileName" -NoNewline
+    
     try {
         # Compute SHA-256 hash using -LiteralPath
         $hash = Get-FileHash -LiteralPath $file.FullName -Algorithm SHA256 | Select-Object -ExpandProperty Hash
@@ -146,7 +160,8 @@ foreach ($file in $files) {
 }
 
 # Ensure progress bar is cleared after processing
-Write-Host "`rProcessing complete!                       `n"
+$clearLine = (" " * ($consoleWidth - 20)) + "`r"  # Dynamically clear the line
+Write-Host "`rProcessing complete!$clearLine" -ForegroundColor Green
 
 # Filter out unique files (keep only duplicates)
 $duplicates = $hashes.GetEnumerator() | Where-Object { $_.Value.Count -gt 1 }
