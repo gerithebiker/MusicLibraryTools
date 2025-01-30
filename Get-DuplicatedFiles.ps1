@@ -74,7 +74,9 @@ if (Test-Path -Path $LibraryPath) {
 }
 
 # Hashtable to store hash -> file paths
-$hashes = @{}
+#$hashes = @{}
+
+$sizeNameGroups = @{}
 
 Write-Host "Scanning files in $Path..."
 
@@ -145,19 +147,36 @@ foreach ($file in $files) {
     Write-Host "$clearLine`r$progressText $fileName" -NoNewline
     
     try {
-        # Compute SHA-256 hash using -LiteralPath
-        $hash = Get-FileHash -LiteralPath $file.FullName -Algorithm SHA256 | Select-Object -ExpandProperty Hash
-
-        # Store the file path under its hash
-        if ($hashes.ContainsKey($hash)) {
-            $hashes[$hash] += $file.FullName
+        # Group files by (size + name) before hashing
+        $key = "$($file.Length)_$($file.Name)"
+        if ($sizeNameGroups.ContainsKey($key)) {
+            $sizeNameGroups[$key] += $file.FullName
         } else {
-            $hashes[$hash] = @($file.FullName)
+            $sizeNameGroups[$key] = @($file.FullName)
         }
     } catch {
         Write-Host "`rError processing file: $($file.FullName)" -ForegroundColor Red
     }
 }
+
+
+$hashes = @{}
+
+foreach ($group in $sizeNameGroups.GetEnumerator()) {
+    if ($group.Value.Count -gt 1) {  # Only process groups with duplicates
+        foreach ($filePath in $group.Value) {
+            $hash = Get-PartialFileHash -FilePath $filePath -BytesToRead 1MB
+            if ($null -ne $hash) {
+                if ($hashes.ContainsKey($hash)) {
+                    $hashes[$hash] += $filePath
+                } else {
+                    $hashes[$hash] = @($filePath)
+                }
+            }
+        }
+    }
+}
+
 
 # Ensure progress bar is cleared after processing
 $clearLine = (" " * ($consoleWidth - 20)) + "`r"  # Dynamically clear the line

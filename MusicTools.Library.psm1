@@ -125,3 +125,31 @@ function Convert-TextToExcel {
 
     Write-Host "Excel file created successfully: $OutputFile"
 }
+
+function Get-PartialFileHash {
+    param (
+        [string]$FilePath,
+        [int]$BytesToRead = 1MB  # Default: Read first 1MB
+    )
+
+    try {
+        # Just indicating that the function is running
+        Write-Host "Function 'Get-PartialFileHash' is hashing file: $FilePath" -ForegroundColor Green
+        # ✅ Normalize path to handle special characters
+        $normalizedPath = [System.IO.Path]::GetFullPath($FilePath)
+
+        # ✅ Open file safely with full path handling
+        $stream = [System.IO.File]::Open($normalizedPath, [System.IO.FileMode]::Open, [System.IO.FileAccess]::Read, [System.IO.FileShare]::Read)
+        $buffer = New-Object byte[] $BytesToRead
+        $bytesRead = $stream.Read($buffer, 0, $BytesToRead)  # Read the first X bytes
+        $stream.Close()
+
+        # Compute SHA-256 hash on the partial buffer
+        $hash = (New-Object Security.Cryptography.SHA256Managed).ComputeHash($buffer[0..($bytesRead-1)])
+        return -join ($hash | ForEach-Object { $_.ToString("x2") })  # Convert to hex string
+    }
+    catch {
+        Write-Warning "Function 'Get-PartialFileHash' error hashing file: $FilePath - $_" -ForegroundColor Red
+        return $null  # Return null if there's an error
+    }
+}
