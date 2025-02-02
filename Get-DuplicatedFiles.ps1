@@ -43,26 +43,38 @@
 
 #----------------------------------------------------------[Declarations]----------------------------------------------------------
 param (
-    [string]$Path = "C:\",                              # Default to C:\ (change if needed)
-    [string]$OutputFile = "duplicates_grouped.txt",     # Full output with file names
-    [string]$FolderOnlyOutput = "duplicates_folders.txt", # Output containing only folder groups
-    [int]$MinFileSizeKB = 10,                           # Ignore files smaller than 10KB (change if needed)
-    [switch]$CSV,                                       # Export to Excel (optional) 
-    [string[]]$DoNotScan,                               # List of folders to exclude from scanning 
-    [switch]$DirExclusionOverride,                      # Override exclusions from mTools.ini   
-    [switch]$FileExclusionOverride                      # Override file exclusions from mTools.ini
+    [string]$Path = "C:\",                                  # Default to C:\ (change if needed)
+    [string]$OutputFile = "duplicates_grouped.txt",         # Full output with file names
+    [string]$FolderOnlyOutput = "duplicates_folders.txt",   # Output containing only folder groups
+    [int]$MinFileSizeKB = 10,                               # Ignore files smaller than 10KB (change if needed)
+    [switch]$CSV,                                           # Export to Excel (optional) 
+    [string[]]$DoNotScan,                                   # List of folders to exclude from scanning 
+    [switch]$DirExclusionOverride,                          # Override exclusions from mTools.ini   
+    [switch]$FileExclusionOverride                          # Override file exclusions from mTools.ini
 )
 
 $runTimeTXT = "Runtime: "
 $startTime = Get-Date
 $accentColor = [System.ConsoleColor]::DarkYellow
 
+# We gonna set the putput file names
+# # Get the user's Documents\MusicLibraryTools\Results path
+$ResultsPath = Join-Path ([Environment]::GetFolderPath('MyDocuments')) 'MusicLibraryTools'
+
+# Ensure the Results folder exists
+if (-not (Test-Path $ResultsPath)) {
+    New-Item -ItemType Directory -Path $ResultsPath -Force | Out-Null
+}
+
+# Extract the drive letter from the provided path
 $drive = $Path.Substring(0, 1) + "_"
-$OutputFile = $drive + $OutputFile
-$FolderOnlyOutput = $drive + $FolderOnlyOutput
 
-# Check if the path exists and load the MusicLibraryTools library
+# Prepend the Results path to the output files
+$OutputFile = Join-Path $ResultsPath ($drive + $OutputFile)
+$FolderOnlyOutput = Join-Path $ResultsPath ($drive + $FolderOnlyOutput)
 
+
+# Check if the path to scan exists and load the MusicLibraryTools library
 if (-not (Test-Path -LiteralPath $Path)) {
     Write-Host "Error: Path '$Path' does not exist."
     exit 1
@@ -280,9 +292,9 @@ if ($folderGroups.Count -gt 0) {
 Write-ColoredText -TextPairs "Processed ",$totalFiles, " alltogether." -AccentColor $accentColor 
 
 # Duplicates
-Write-ColoredText -TextPairs "Done! Results saved in '", $OutputFile, "' and '",$FolderOnlyOutput, "'" -AccentColor $accentColor -NoNewline
+Write-ColoredText -TextPairs "Done!`nResults saved in '", $OutputFile, "'`n             and '",$FolderOnlyOutput, "'" -AccentColor $accentColor -NoNewLine
 if($CSV) { 
-    Write-ColoredText -TextPairs " and also in '", $excelFile, "'." -AccentColor $accentColor 
+    Write-ColoredText -TextPairs "`n     and also in '", $excelFile, "'." -AccentColor $accentColor 
 }else{ 
     Write-Host "." 
 }

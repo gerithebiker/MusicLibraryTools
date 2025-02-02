@@ -11,7 +11,7 @@
         It is to make sure you can copy files from multiple sources to the same destination, without deleting any files.
 
     This script does not use parameters directly, it is reading out from a configuration file, that is located in the user's profile directory.
-        The configuration file is located here: "$env:USERPROFILE\MusicLibraryTools\SourceDestinationPairs.txt"
+        The configuration file is located here: "$env:APPDATA\MusicLibraryTools\SourceDestinationPairs.txt"
         If the file does not exist it will create it, and ask for the source and destination paths. The paths should be entered in the following format:
         Source: "C:\myMusic" 
         Destination: "\\MyServer\MyMusic"
@@ -22,8 +22,8 @@
     Total Commander settings:
         Execute command: C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe
         Icon file: <chose what you like>
-        Start path: C:\Users\<YourUserID>\MusicLibraryTools\
-        Parameters: C:\Users\<YourUserID>\MusicLibraryTools\Backup-MusicLibrary.ps1
+        Start path: C:\Users\<YourUserID>\AppData\Roaming\MusicLibraryTools\
+        Parameters: C:\Users\<YourUserID>\AppData\Roaming\MusicLibraryTools\Backup-MusicLibrary.ps1
 
         In this case it is pretty simple as it does not require any parameters from Total Commander.
 
@@ -40,7 +40,7 @@
   Purpose/Change: 2025.01.07 - Making ready for sharing
 
 .EXAMPLE
-    C:\Users\<YourUserID>\MusicLibraryTools\Backup-MusicLibrary.ps1 
+    C:\Users\<YourUserID>\AppData\Roaming\MusicLibraryTools\Backup-MusicLibrary.ps1 
   
 #>
 
@@ -48,11 +48,11 @@
 # This script does not use the common parameters, as it is not designed to be used in a pipeline,
 #   but with a tool like Unreal Commander, or Total Commander
 # To make life easier, we will use a predefined parameter file, where we can store the parameters
-# This file is stored in the user's profile directory, and it is lodated here: "$env:USERPROFILE\MusicLibraryTools\SourceDestinationPairs.txt"
+# This file is stored in the user's APPDATA directory, and it is lodated here: "$env:APPDATA\MusicLibraryTools\SourceDestinationPairs.txt"
 
 #-----------------------------------------------------------[Functions]------------------------------------------------------------
 # Define the path to the library script
-$LibraryPath = "$env:USERPROFILE\MusicLibraryTools\MusicLibraryTools.Library.psm1"
+$LibraryPath = "$env:APPDATA\MusicLibraryTools\MusicLibraryTools.Library.psm1"
 
 # Import the library module
 if (Test-Path -Path $LibraryPath) {
@@ -198,10 +198,12 @@ function Convert-ShortcutToUNC {
 #$ScriptVersion = "0.0"
 
 # Path to configuration file
-$configFile = "$env:USERPROFILE\MusicLibraryTools\SourceDestinationPairs.txt"
+$configFile = "$env:APPDATA\MusicLibraryTools\SourceDestinationPairs.txt"
 if (!(Test-Path $configFile)) {Set-ConfigFile} #else {Write-Output "Configuration file $configFile already exists. Proceeding..."}
 # Path to output list file for the .lnk files list
-$outputLnkFileList = "$env:USERPROFILE\MusicLibraryTools\AllLnkFiles.txt"
+$outputLnkFileList = "$env:USERPROFILE\Documents\MusicLibraryTools\AllLnkFiles.txt"
+
+
 
 #-----------------------------------------------------------[Execution]------------------------------------------------------------
 # Check if robocopy exists, it is necessary for the script to run

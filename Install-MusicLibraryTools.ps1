@@ -23,7 +23,7 @@ Note: If you're using an older version of Windows (e.g., Windows 7/8), ensure yo
 
 
 # Define paths
-$MusicLibraryToolsPath = "$env:USERPROFILE\MusicLibraryTools"
+$MusicLibraryToolsPath = "$env:APPDATA\MusicLibraryTools"
 $RepoURL = "https://github.com/gerithebiker/MusicLibraryTools"
 #$MusicLibraryToolsPath = "$MusicLibraryToolsPath\repo"
 $LibraryPath = "$MusicLibraryToolsPath\MusicLibraryTools.Library.psm1"

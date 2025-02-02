@@ -283,3 +283,43 @@ function Write-ColoredText {
         Write-Host ""
     } 
 }
+
+# Function to get a specific section from the INI file
+function Get-IniSection {
+    param (
+        [Parameter(Mandatory = $true)]
+        [string]$IniPath,
+
+        [Parameter(Mandatory = $true)]
+        [string]$SectionName
+    )
+
+    if (-not (Test-Path $IniPath)) {
+        throw "INI file not found at: $IniPath"
+    }
+
+    $iniContent = Get-Content -Path $IniPath
+    $insideSection = $false
+    $sectionContent = @{}
+
+    foreach ($line in $iniContent) {
+        if ($line -match "^\[$SectionName\]") {
+            $insideSection = $true
+            continue
+        }
+
+        if ($insideSection -and $line -match '^\[.*\]') {
+            break
+        }
+
+        if ($insideSection -and $line -notmatch '^\s*($|;.*)') {
+            if ($line -match '^(.*?)=(.*)$') {
+                $key = $matches[1].Trim()
+                $value = $matches[2].Trim()
+                $sectionContent[$key] = $value
+            }
+        }
+    }
+
+    return $sectionContent
+}
