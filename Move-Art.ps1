@@ -11,8 +11,8 @@
 
     Execute command: C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe
     Icon file: <chose what you like>
-    Start path: C:\Users\<YourUserID>\MusicTools\
-    Parameters: C:\Users\<YourUserID>\MusicTools\Move-Art.ps1  -w \"%P \"
+    Start path: C:\Users\<YourUserID>\MusicLibraryTools\
+    Parameters: C:\Users\<YourUserID>\MusicLibraryTools\Move-Art.ps1  -w \"%P \"
 
 .PARAMETER workingDir
 	The name of the directory where your files are

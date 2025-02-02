@@ -20,8 +20,8 @@
 
     Execute command: C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe
     Icon file: <chose what you like>
-    Start path: C:\Users\<YourUserID>\MusicTools\
-    Parameters: C:\Users\<YourUserID>\MusicTools\Add-PlayLists.ps1 -w \"%P \"
+    Start path: C:\Users\<YourUserID>\MusicLibraryTools\
+    Parameters: C:\Users\<YourUserID>\MusicLibraryTools\Add-PlayLists.ps1 -w \"%P \"
 
 .PARAMETER startPath
 	The top folder where the script should start for music files. If non give, it will use the current directory.

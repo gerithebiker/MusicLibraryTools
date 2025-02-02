@@ -15,13 +15,13 @@
 
     Execute command: C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe
     Icon file: <chose what you like>
-    Start path: C:\Users\<YourUserID>\MusicTools\
-    Parameters: C:\Users\<YourUserID>\MusicTools\Add-RelativeLink.ps1 -w \"%T \"  -t \"%P%N\ \"
+    Start path: C:\Users\<YourUserID>\MusicLibraryTools\
+    Parameters: C:\Users\<YourUserID>\MusicLibraryTools\Add-RelativeLink.ps1 -w \"%T \"  -t \"%P%N\ \"
     
     With this last setting it will create the link in the PASSIVE panel. The advantage of this, if you want to create
        many links, it is easier to just select the directories one-by-one, create the link, and step to the next one.
     
-    Parameters: C:\Users\<YourUserID>\MusicTools\Add-RelativeLink.ps1 -w \"%P \"  -t \"%T \"
+    Parameters: C:\Users\<YourUserID>\MusicLibraryTools\Add-RelativeLink.ps1 -w \"%P \"  -t \"%T \"
 
     With the second parameters setting the link will be created in the ACTIVE panel. This is useful if you want to create
        links in a single directory.
