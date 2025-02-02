@@ -48,33 +48,49 @@ param (
     [string]$FolderOnlyOutput = "duplicates_folders.txt", # Output containing only folder groups
     [int]$MinFileSizeKB = 10,                           # Ignore files smaller than 10KB (change if needed)
     [switch]$CSV,                                       # Export to Excel (optional) 
-    [string[]]$DoNotScan                                # List of folders to exclude from scanning   
+    [string[]]$DoNotScan,                               # List of folders to exclude from scanning 
+    [switch]$DirExclusionOverride,                      # Override exclusions from mTools.ini   
+    [switch]$FileExclusionOverride                      # Override file exclusions from mTools.ini
 )
 
 $runTimeTXT = "Runtime: "
 $startTime = Get-Date
+$accentColor = [System.ConsoleColor]::DarkYellow
 
 $drive = $Path.Substring(0, 1) + "_"
 $OutputFile = $drive + $OutputFile
 $FolderOnlyOutput = $drive + $FolderOnlyOutput
 
-#-------------------------------------------------------------[Main]--------------------------------------------------------------
-# Ensure the path exists
+# Check if the path exists and load the MusicLibraryTools library
+
 if (-not (Test-Path -LiteralPath $Path)) {
     Write-Host "Error: Path '$Path' does not exist."
     exit 1
 }
-$LibraryPath = ".\MusicTools.Library.psm1" # This has to be updated in the final version
+
+$LibraryPath = "$env:USERPROFILE\Documents\GitHub\MusicLibraryTools\MusicLibraryTools.Library.psm1" # This has to be updated in the final version
 if (Test-Path -Path $LibraryPath) {
     Import-Module -Name $LibraryPath -Force
-    Write-Host "MusicTools library module imported successfully."
+    Write-Host "MusicLibraryTools library module imported successfully."
 } else {
     Write-Warning "Library module not found at '$LibraryPath'. Ensure the repository includes it."
     exit 1
 }
 
-# Hashtable to store hash -> file paths
-#$hashes = @{}
+#-------------------------------------------------------------[Main]--------------------------------------------------------------
+# ✅ Read exclusions from mTools.ini
+$exclusions = Get-ExclusionsFromINI
+
+if(-not $DirExclusionOverride) {
+    Write-Host "Excluded directories from mTools.ini: $($exclusions["excludeDirs"] -join ', ')"
+    $excludedDirs = $exclusions["excludeDirs"]
+    Write-Host "Excluding directories: $($excludedDirs -join ', ')"
+}
+if(-not $FileExclusionOverride) {
+    Write-Host "Excluded file types from mTools.ini: $($exclusions["excludeFiles"] -join ', ')"
+    $excludedFiles = $exclusions["excludeFiles"]
+    Write-Host "Excluding file types: $($excludedFiles -join ', ')"
+}
 
 $sizeNameGroups = @{}
 
@@ -86,31 +102,37 @@ Write-Host "Scanning files in $Path..."
 #     ($null -eq $DoNotScan -or -not ($DoNotScan | Where-Object { $_ -and $_ -ne "" -and $_.StartsWith($_.DirectoryName, [System.StringComparison]::OrdinalIgnoreCase) }))
 # }
 # ✅ Step 1: Collect all files first
+Write-ColoredText -TextPairs "Collecting all files in ", $Path, ". This may take a while, and as this is one operation, I cannot display status info..." -AccentColor "Yellow"
 $allFiles = Get-ChildItem -LiteralPath $Path -Recurse -File
 
-# ✅ Step 2: Filter files AFTER collection
+# ✅ Step 2: Filter files AFTER collection. It is not really possible to filter all this in one go, that is why the filtering is done in a separate step
 $files = @()  # Initialize as an empty array
 foreach ($file in $allFiles) {
+
+    # ✅ Check if directory is excluded first, skips all other tests
+    if(-not $DirExclusionOverride) {
+        if ($excludedDirs | Where-Object { $file.DirectoryName -match [regex]::Escape($_) }) {
+            continue  # Skip all files inside this directory
+        }
+    }
+
+    # ✅ Check if file type is excluded (only if directory wasn't already excluded) 
+    if(-not $FileExclusionOverride) {
+        if ($excludedFiles -contains $file.Extension.TrimStart('.')) {
+            continue  # Skip excluded file types
+        }
+    }
+
+    # ✅ Always exclude shortcut (.lnk) files, regardless of override
+    if ($file.Extension -eq ".lnk") {
+        continue  # Skip .lnk files early
+    }
     # ✅ Check minimum file size
     if ($MinFileSizeKB -ne 0 -and $file.Length -le ($MinFileSizeKB * 1KB)) {
         continue  # Skip small files
     }
 
-    # ✅ Check if the file's directory is inside the excluded list
-    if ($DoNotScan) {
-        $excludeMatch = $false
-        foreach ($excludedPath in $DoNotScan) {
-            if ($excludedPath -and $excludedPath -ne "" -and $file.DirectoryName -match [regex]::Escape($excludedPath)) {
-                $excludeMatch = $true
-                break  # No need to check further exclusions
-            }
-        }
-        if ($excludeMatch) {
-            continue  # Skip this file
-        }
-    }
-
-    # ✅ If it passed both checks, add to final file list
+    # ✅ If it passed all checks (meaning should be checked), add to final file list
     $files += $file
 }
 
@@ -121,30 +143,13 @@ $processedFiles = 0
 
 # Process each file with a progress indicator
 foreach ($file in $files) {
-    # Skip files if their path contains ".lnk"
-    if ($file.FullName -match "\.lnk") { 
-        continue 
-    }
+    # # Skip files if their path contains ".lnk"
+    # if ($file.FullName -match "\.lnk") { 
+    #     continue 
+    # }
 
     $processedFiles++
-    $consoleWidth = [console]::WindowWidth
-
-    # ✅ Calculate the length of the progress counter text dynamically
-    $progressText = "Processing files: $processedFiles / $totalFiles ($progress%)"
-    $progressLength = $progressText.Length
-    
-    # ✅ Reserve space for progress text, ensuring file names fit within the remaining space
-    $maxTextWidth = $consoleWidth - $progressLength - 5  # Extra buffer for safety
-    
-    $clearLine = "`r" + (" " * ($consoleWidth - 1)) + "`r"  # Clear the whole line
-    
-    # ✅ Truncate long file names to fit
-    $fileName = $file.FullName
-    if ($fileName.Length -gt $maxTextWidth) {
-        $fileName = $fileName.Substring(0, $maxTextWidth - 3) + "..."  # Truncate with "..."
-    }
-    
-    Write-Host "$clearLine`r$progressText $fileName" -NoNewline
+    Use-ProgressIndicator -Current $processedFiles -Total $totalFiles -Message $file.FullName    
     
     try {
         # Group files by (size + name) before hashing
@@ -160,12 +165,18 @@ foreach ($file in $files) {
 }
 
 
+Write-ColoredText -TextPairs "Processing ", $processedFiles, " files completed. Starting ashing and grouping duplicates..." -AccentColor Green -clearLine 
+
 $hashes = @{}
+$processedHashes = 0
+$totalHashFiles = ($sizeNameGroups.GetEnumerator() | Where-Object { $_.Value.Count -gt 1 } | ForEach-Object { $_.Value.Count } | Measure-Object -Sum).Sum
 
 foreach ($group in $sizeNameGroups.GetEnumerator()) {
     if ($group.Value.Count -gt 1) {  # Only process groups with duplicates
         foreach ($filePath in $group.Value) {
-            $hash = Get-PartialFileHash -FilePath $filePath -BytesToRead 1MB
+            $processedHashes++
+            Use-ProgressIndicator -Current $processedHashes -Total $totalHashFiles -Message "$filePath" -Prefix "Hashing:"
+            $hash = Get-PartialFileHash -FilePath $filePath # -BytesToRead 512KB # if you want to override the default 1MB. 
             if ($null -ne $hash) {
                 if ($hashes.ContainsKey($hash)) {
                     $hashes[$hash] += $filePath
@@ -177,12 +188,11 @@ foreach ($group in $sizeNameGroups.GetEnumerator()) {
     }
 }
 
+# Clear the progress indicator with message
+Write-HostClearLine -Message ""
+Write-ColoredText -TextPairs "Hashing and grouping of ", $totalHashFiles, " files completed." -AccentColor Green 
 
-# Ensure progress bar is cleared after processing
-$clearLine = (" " * ($consoleWidth - 20)) + "`r"  # Dynamically clear the line
-Write-Host "`rProcessing complete!$clearLine" -ForegroundColor Green
-
-# Filter out unique files (keep only duplicates)
+# Filter out unique files (keep only duplicates
 $duplicates = $hashes.GetEnumerator() | Where-Object { $_.Value.Count -gt 1 }
 
 # Hashtable for organizing grouped output by folder
@@ -219,16 +229,16 @@ foreach ($dup in $duplicates) {
     $folderGroups[$folderKey] += $uniqueFiles | ForEach-Object { [System.IO.Path]::GetFileName($_) }
 }
 
-# Write results to output files
-Write-Host "Found $(@($duplicates).Count) duplicate files in $processedFiles files."
-Write-Host "Writing results to $OutputFile and $FolderOnlyOutput..."
-if(Test-Path -LiteralPath $OutputFile) { Remove-Item -LiteralPath $OutputFile } # Clear previous content
-if(Test-Path -LiteralPath $FolderOnlyOutput) { Remove-Item -LiteralPath $FolderOnlyOutput}  # Clear previous content
-
 if ($folderGroups.Count -gt 0) { 
+    # Write results to output files
+    Write-Host "Found $(@($duplicates).Count) duplicate files in $processedFiles files." -ForegroundColor Yellow
+    Write-Host "Writing results to $OutputFile and $FolderOnlyOutput..."
+    if(Test-Path -LiteralPath $OutputFile) { Remove-Item -LiteralPath $OutputFile } # Clear previous content
+    if(Test-Path -LiteralPath $FolderOnlyOutput) { Remove-Item -LiteralPath $FolderOnlyOutput}  # Clear previous content
+
     $groupCounter = 0
     foreach ($folderKey in $folderGroups.Keys | Sort-Object) {
-        Write-Host "`rWriting folder group $folderKey..." 
+        # "`rWriting folder group $folderKey..." 
         if($groupCounter -gt 0) {
             "`r`n***************" | Out-File -LiteralPath $OutputFile -Append
             "`r`n***************" | Out-File -LiteralPath $FolderOnlyOutput -Append
@@ -245,49 +255,39 @@ if ($folderGroups.Count -gt 0) {
     if ($CSV) {
         $excelFile = [System.IO.Path]::ChangeExtension($OutputFile, ".xlsx")
         $baseName = $excelFile -replace "\.xlsx$", ""
-        write-host "Exporting to Excel: $excelFile" -ForegroundColor Green
-
-        function Test-FileLocked {
-            param ([string]$FilePath)
-            $myFile = Resolve-Path $FilePath
-            write-host "Checking if file is locked: $myFile"
-            try {
-                write-host "Trying to open file..."
-                $fs = [System.IO.File]::Open($myFile, 'Open', 'Write')
-                write-host "File is not locked."
-                $fs.Close()
-                write-host "removing file..."
-                Remove-Item -Force $FilePath
-                return $false  # File is NOT locked
-            } catch {
-                return $true   # File is locked
-            }
-        }
+        #Write-ColoredText -TextPairs "Exporting to Excel: ", $excelFile -AccentColor Green
 
         # Check if the Excel file is locked and rename if needed
         $counter = 1
         while ((Test-Path $excelFile) -and (Test-FileLocked -FilePath $excelFile)) {
-            write-host "File is locked or already exists: $excelFile" -ForegroundColor Magenta
+            Write-Host "File is locked or already exists: $excelFile" -ForegroundColor Magenta
             $excelFile = "$baseName`_($counter).xlsx"
             $counter++
         }
-        # Export to Excel with automatic table formatting
-        # It this case the names are a bit misleading... The "OutputFile" output for the text export, but input for the Excel export
-        Write-Host "variables: $OutputFile, $excelFile"
-        get-content $OutputFile
-        Convert-TextToExcel -InputFile $OutputFile -OutputFile $excelFile 
 
-        Write-Host "Excel Exported: $excelFile"
+        # Export to Excel with automatic table formatting
+        Convert-TextToExcel -InputFile $OutputFile -OutputFile $excelFile 
     } 
 } else {
-    Write-Host "No duplicate files found. No output files generated."
+    # No duplicates found
+    Write-Host "No duplicate files found. No output files generated." -ForegroundColor Green
 }
 
 
 
 #----------------------------------------------------------[Completion]----------------------------------------------------------
-# Display completion message
-Write-Host "Done! Results saved in '$OutputFile' and '$FolderOnlyOutput'."
+# Processed
+Write-ColoredText -TextPairs "Processed ",$totalFiles, " alltogether." -AccentColor $accentColor 
+
+# Duplicates
+Write-ColoredText -TextPairs "Done! Results saved in '", $OutputFile, "' and '",$FolderOnlyOutput, "'" -AccentColor $accentColor -NoNewline
+if($CSV) { 
+    Write-ColoredText -TextPairs " and also in '", $excelFile, "'." -AccentColor $accentColor 
+}else{ 
+    Write-Host "." 
+}
+
+# Runtime
 $endTime = Get-Date
 $runTime = [Math]::Round((New-TimeSpan -Start $startTime -end $endTime).totalseconds,2)
-Write-Host $runTimeTXT$runTime "seconds."
+Write-ColoredText -TextPairs $runTimeTXT, $runTime, " seconds." -AccentColor $accentColor

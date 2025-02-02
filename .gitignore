@@ -3,3 +3,4 @@ test*
 *duplicates*.txt
 *.csv
 *.xls*
+mTools.ini
