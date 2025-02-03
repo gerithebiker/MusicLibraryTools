@@ -56,6 +56,8 @@ param (
 $runTimeTXT = "Runtime: "
 $startTime = Get-Date
 $accentColor = [System.ConsoleColor]::DarkYellow
+$iniPath = "$env:APPDATA\MusicLibraryTools\mTools.ini"
+$exclusions = "fileScanExclusions"
 
 # We gonna set the putput file names
 # # Get the user's Documents\MusicLibraryTools\Results path
@@ -91,17 +93,17 @@ if (Test-Path -Path $LibraryPath) {
 
 #-------------------------------------------------------------[Main]--------------------------------------------------------------
 # ✅ Read exclusions from mTools.ini
-$exclusions = Get-ExclusionsFromINI
+# $exclusions = Get-ExclusionsFromINI
+$exclusions = Get-IniSection -IniPath $iniPath -SectionName $exclusions
+$exclusionss = Get-ExclusionsFromINI
 
-if(-not $DirExclusionOverride) {
-    Write-Host "Excluded directories from mTools.ini: $($exclusions["excludeDirs"] -join ', ')"
-    $excludedDirs = $exclusions["excludeDirs"]
-    Write-Host "Excluding directories: $($excludedDirs -join ', ')"
+if(-not $DirExclusionOverride -and -not $DoNotScan) {
+    Write-Host "Excluded directories from mTools.ini: $($exclusions["excludeDirs"])"
+    $excludedDirs = $exclusions["excludeDirs"] -split ","
 }
 if(-not $FileExclusionOverride) {
-    Write-Host "Excluded file types from mTools.ini: $($exclusions["excludeFiles"] -join ', ')"
-    $excludedFiles = $exclusions["excludeFiles"]
-    Write-Host "Excluding file types: $($excludedFiles -join ', ')"
+    Write-Host "Excluded file types from mTools.ini: $($exclusions["excludeFiles"])"
+    $excludedFiles = $exclusions["excludeFiles"] -split ","
 }
 
 $sizeNameGroups = @{}

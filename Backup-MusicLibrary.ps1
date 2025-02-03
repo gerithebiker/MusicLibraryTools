@@ -213,6 +213,18 @@ if (-not (Get-Command -Name "robocopy" -ErrorAction SilentlyContinue)) {
     Exit
 }
 
+########################################
+########################################
+# Process the pairs
+$sourceDestinationPairs = Get-IniSection -IniPath $iniPath -SectionName "sourceDestinationPairs"
+foreach ($pair in $sourceDestinationPairs.GetEnumerator()) {
+    $source, $destination = $pair.Value -split '\|'
+    Write-Host "Processing: $source → $destination"
+    # Add your file/link handling logic here
+}
+########################################
+########################################
+
 # Clear previous content in the output list file
 if (Test-Path $outputLnkFileList) {
     Clear-Content -Path $outputLnkFileList

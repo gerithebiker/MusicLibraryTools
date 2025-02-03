@@ -323,3 +323,4 @@ function Get-IniSection {
 
     return $sectionContent
 }
+
