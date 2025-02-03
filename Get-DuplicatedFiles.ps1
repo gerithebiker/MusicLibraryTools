@@ -95,15 +95,18 @@ if (Test-Path -Path $LibraryPath) {
 # ✅ Read exclusions from mTools.ini
 # $exclusions = Get-ExclusionsFromINI
 $exclusions = Get-IniSection -IniPath $iniPath -SectionName $exclusions
-$exclusionss = Get-ExclusionsFromINI
 
 if(-not $DirExclusionOverride -and -not $DoNotScan) {
-    Write-Host "Excluded directories from mTools.ini: $($exclusions["excludeDirs"])"
     $excludedDirs = $exclusions["excludeDirs"] -split ","
+    Write-Host "Excluded directories from mTools.ini: $($excludedDirs -join ', ')"
+}elseif (-not $DirExclusionOverride ) {
+    $excludedDirs = $DoNotScan -split ","
+    Write-Host "Excluded directories from command line: $($excludedDirs -join ', ')"
 }
+
 if(-not $FileExclusionOverride) {
-    Write-Host "Excluded file types from mTools.ini: $($exclusions["excludeFiles"])"
     $excludedFiles = $exclusions["excludeFiles"] -split ","
+    Write-Host "Excluded files from mTools.ini: $($excludedFiles -join ', ')"
 }
 
 $sizeNameGroups = @{}
