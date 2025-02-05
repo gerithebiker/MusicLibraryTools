@@ -36,7 +36,8 @@ $ConfigFilePath = "$MusicLibraryToolsPath\mTools.ini"
 $PS5Path = "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe"
 if (Test-Path -Path $PS5Path) {
     # Check the version of the executable
-    $PS5Version = & $PS5Path -Command { $PSVersionTable.PSVersion.Major }
+    $PS5Version = & $PS5Path  -NoProfile -Command { $PSVersionTable.PSVersion.Major } 
+    #$PS5Version = $PS5Version.Trim()
 
     if ($PS5Version -eq 5) {
         Write-Host "`nPowerShell 5.x is installed and available at $PS5Path."

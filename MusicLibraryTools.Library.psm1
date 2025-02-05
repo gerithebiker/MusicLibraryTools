@@ -48,19 +48,20 @@ function Set-ConfigFile {
 
     # Collect file scan exclusions
     Write-Host "Configuring file scan exclusions:" -ForegroundColor Green
-    $excludeFiles = Read-Host "Enter file extensions to exclude from duplicate scanning (default: $defaultExcludeFiles)"
+    Write-ColoredText -TextPairs "Enter file extensions to exclude from duplicate scanning (default: ", $defaultExcludeFiles, " )" 
+    $excludeFiles = Read-Host #"Enter file extensions to exclude from duplicate scanning (default: $defaultExcludeFiles)"
     if ([string]::IsNullOrWhiteSpace($excludeFiles)) { # User wants the default list
         $excludeFiles = $defaultExcludeFiles
     }
 
-    $excludeDirs = Read-Host "Enter directories to exclude from duplicate scanning. If you hit <enter>, all the folders will be scannes."
+    $excludeDirs = Read-Host "Enter directories to exclude from duplicate scanning. If you hit <enter>, all the folders will be scanned"
 
     $configContent += "[fileScanExclusions]"
     $configContent += "excludeFiles=$excludeFiles"
     $configContent += "excludeDirs=$excludeDirs"
 
     # Collect source-destination pairs
-    Write-Host "\nConfiguring source-destination pairs:" -ForegroundColor Green
+    Write-Host "`nConfiguring source-destination pairs:" -ForegroundColor Green
     $pairCounter = 1
     $pairs = @()
 
