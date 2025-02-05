@@ -40,48 +40,67 @@ function Set-ConfigFile {
         [string]$configFilePath  # Path to the configuration file
     )
 
-    $pathPairs = @()
-    $pathPairs += "# SourcePath|DestinationPath file created by Install-MusicLibraryTools script." 
-    $counter = 1
+    $configContent = @()
+    $configContent += "# Configuration file created by Install-MusicLibraryTools script."
+
+    # Default exclusions
+    $defaultExcludeFiles = "jpg,png,pdf,log,cue,m3u"
+
+    # Collect file scan exclusions
+    Write-Host "Configuring file scan exclusions:" -ForegroundColor Green
+    $excludeFiles = Read-Host "Enter file extensions to exclude from duplicate scanning (default: $defaultExcludeFiles)"
+    if ([string]::IsNullOrWhiteSpace($excludeFiles)) { # User wants the default list
+        $excludeFiles = $defaultExcludeFiles
+    }
+
+    $excludeDirs = Read-Host "Enter directories to exclude from duplicate scanning. If you hit <enter>, all the folders will be scannes."
+
+    $configContent += "[fileScanExclusions]"
+    $configContent += "excludeFiles=$excludeFiles"
+    $configContent += "excludeDirs=$excludeDirs"
+
+    # Collect source-destination pairs
+    Write-Host "\nConfiguring source-destination pairs:" -ForegroundColor Green
+    $pairCounter = 1
+    $pairs = @()
 
     while ($true) {
-        # Prompt for SourcePath
-        $sourcePath = Read-Host "Enter SourcePath number $counter or type 'done' or hit enter"
+        $sourcePath = Read-Host "Enter SourcePath for Pair$pairCounter (or type 'done' to finish)"
 
-        if ($sourcePath -eq 'done' -or $sourcePath -eq '') {
+        if ($sourcePath -eq 'done' -or [string]::IsNullOrWhiteSpace($sourcePath)) {
             break
         }
 
-        # Validate SourcePath exists
         if (-not (Test-Path -Path $sourcePath)) {
             Write-Host -ForegroundColor Red "SourcePath '$sourcePath' does not exist. Please try again."
             continue
         }
 
-        # Prompt for DestinationPath
-        $destinationPath = Read-Host "Enter DestinationPath number ${counter}"
+        $destinationPath = Read-Host "Enter DestinationPath for Pair$pairCounter"
 
-        # Validate DestinationPath exists
         if (-not (Test-Path -Path $destinationPath)) {
             Write-Host -ForegroundColor Red "DestinationPath '$destinationPath' does not exist. Please try again."
             continue
         }
 
-        # Add the validated path pair to the array
-        $pathPairs += "$sourcePath|$destinationPath"
-        $counter++
+        $pairs += "Pair$pairCounter = $sourcePath|$destinationPath"
+        $pairCounter++
     }
 
-    # Write path pairs to the config file
-    if ($pathPairs.Count -gt 1) {
-        $pathPairs | Out-File -FilePath $configFilePath -Encoding UTF8
+    $configContent += ""
+    $configContent += "[sourceDestinationPairs]"
+    $configContent += $pairs
+
+    # Write to the configuration file
+    if ($configContent.Count -gt 2) {
+        $configContent | Out-File -FilePath $configFilePath -Encoding UTF8
         Write-Output "Configuration file created at $configFilePath with the following entries:"
-        $pathPairs | ForEach-Object { Write-Output $_ }
+        $configContent | ForEach-Object { Write-Output $_ }
     } else {
-        Write-Output "No valid path pairs were entered. Exiting..."
+        Write-Output "No valid configurations were entered. Exiting..."
     }
     return
-}
+} 
 
 function Convert-TextToExcel {
     param (

@@ -29,7 +29,7 @@ $RepoURL = "https://github.com/gerithebiker/MusicLibraryTools"
 $LibraryPath = "$MusicLibraryToolsPath\MusicLibraryTools.Library.psm1"
 $IniFilePath = "$MusicLibraryToolsPath\UnrealCommanderToolbarButtons.ini"
 $TempIniFilePath = "$MusicLibraryToolsPath\UnrealCommanderToolbarButtons.temp.ini"
-$ConfigFilePath = "$MusicLibraryToolsPath\SourceDestinationPairs.txt"
+$ConfigFilePath = "$MusicLibraryToolsPath\mTools.ini"
 
 #-------------------------------------------------------[PowerShell Checking]-------------------------------------------------
 # Ensure PowerShell 5.x is installed
