@@ -121,7 +121,7 @@ $fileListArray | ForEach-Object {
             $matched = $true
             $newName = $newName -replace $entry.Pattern, $entry.Replace
             $newName = $newName -replace ($replacePatterns -join "|"),".$fileFormat"
-            $newName = $newName -replace ' _ ', '; '
+            $newName = $newName -replace ' _ ', '; ' #[char]0xF025 # This is the "space-middledot-space" character
             $newName = $newName -replace ' -', ', ' # I do not like - in the file names, except after the number, so replacing it with a ,
             $newName = $newName -replace '- ', ', '
             $newName = $newName -replace '_', ' '
