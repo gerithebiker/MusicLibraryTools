@@ -30,7 +30,10 @@ function ConvertFrom-ButtonConfig {
 
 # Function to update Total Commander toolbar
 function Update-TC {
-    param ([array]$buttons)
+    param (
+        [array]$buttons,
+        [string]$tcBarFile
+    )
 
     # Check if Total Commander is running
     # This has to be updated to be a bit more sophisticated
@@ -48,8 +51,7 @@ function Update-TC {
     Copy-Item $tcBarFile "$tcBarFile.bak"
 
     foreach ($button in $buttons) {
-        Add-Content -Path $tcBarFile -Value 
-@"
+        Add-Content -Path $tcBarFile -Value @"
 $($button.Command)
 $($button.StartPath)
 $($button.Tooltip)
@@ -146,7 +148,7 @@ function Update-UC {
 
 # Main Script
 Write-Host "Do you want to install toolbars for Total Commander (TC), Unreal Commander (UC), or both? (Enter: TC/UC/both)"
-$userChoice = "UC" #Read-Host "Your choice"
+$userChoice = "TC" #Read-Host "Your choice"
 
 if (-not (Test-Path $buttonConfigFile)) {
     Write-Error "Button configuration file not found: $buttonConfigFile"
@@ -158,14 +160,14 @@ $buttons = ConvertFrom-ButtonConfig -filePath $buttonConfigFile
 
 switch ($userChoice.ToLower()) {
     "tc" {
-        Update-TC -buttons $buttons
+        Update-TC -buttons $buttons -tcBarFile $tcBarFile
     }
     "uc" {
         Update-UC -buttons $buttons -ucBarFile $ucBarFile
     }
     "both" {
-        Update-TC -buttons $buttons
-        Update-UC -buttons $buttons
+        Update-TC -buttons $buttons -tcBarFile $tcBarFile
+        Update-UC -buttons $buttons -ucBarFile $ucBarFile
     }
     default {
         Write-Error "Invalid choice. Please enter 'TC', 'UC', or 'both'."
