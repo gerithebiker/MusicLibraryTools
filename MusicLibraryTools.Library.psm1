@@ -48,7 +48,7 @@ function Set-ConfigFile {
 
     # Collect file scan exclusions
     Write-Host "Configuring file scan exclusions:" -ForegroundColor Green
-    Write-ColoredText -TextPairs "Enter file extensions to exclude from duplicate scanning (default: ", $defaultExcludeFiles, " )" 
+    Write-ColoredText -AccentColor Green -TextPairs "Enter file extensions to exclude from duplicate scanning (default: ", $defaultExcludeFiles, " )" 
     $excludeFiles = Read-Host #"Enter file extensions to exclude from duplicate scanning (default: $defaultExcludeFiles)"
     if ([string]::IsNullOrWhiteSpace($excludeFiles)) { # User wants the default list
         $excludeFiles = $defaultExcludeFiles
