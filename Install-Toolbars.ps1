@@ -1,6 +1,7 @@
 # Configuration
-$buttonConfigFile = ".\MLT_UC_Buttons.ini"  # Path to the button configuration file
+$tcButtonTemplate = ".\MLT_TC_Template.bar"
 $tcBarFile = "$env:APPDATA\GHISLER\default.bar"  # Total Commander toolbar file
+$buttonConfigFile = ".\MLT_UC_Buttons.bar"  # Path to the button configuration file
 $ucBarFile = "$env:APPDATA\Unreal Commander\uncom.bar"  # Unreal Commander bar file
 
 # Function to parse button settings
@@ -50,14 +51,32 @@ function Update-TC {
     # Backup original file
     Copy-Item $tcBarFile "$tcBarFile.bak"
 
-    foreach ($button in $buttons) {
-        Add-Content -Path $tcBarFile -Value @"
-$($button.Command)
-$($button.StartPath)
-$($button.Tooltip)
-$($button.Icon)
-"@
+    $numberOfButtonsToAdd = [int](Get-Content $tcButtonTemplate | Select-String "cmd").Count
+
+    # Read all lines from the file
+    $content = Get-Content $path
+
+    # Process each line and update "buttoncount"
+    $content = $content | ForEach-Object {
+        if ($_ -match "^buttoncount\s*=\s*(\d+)$") {
+            # Extract the number, increment it, and replace in the line
+            "buttoncount=" + ([int]$matches[1] + $numberOfButtonsToAdd)
+        } else {
+            $_  # Keep other lines unchanged
+        }
     }
+
+    # Write the modified content back to
+    Get-Content $tcButtonTemplate | Add-Content $tcBarFile
+
+#     foreach ($button in $buttons) {
+#         Add-Content -Path $tcBarFile -Value @"
+# $($button.Command)
+# $($button.StartPath)
+# $($button.Tooltip)
+# $($button.Icon)
+# "@
+#     }
     Write-Host "Total Commander toolbar updated successfully!"
 }
 
