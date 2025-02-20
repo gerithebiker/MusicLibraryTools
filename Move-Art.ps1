@@ -65,18 +65,19 @@ function Start-Waiting {
 # If u using the script from command line, or possibly from other commander, you might need to comment out this line
 $workingDir = $workingDir -replace ' ?$'
 write-host "Working Dir: $workingDir"
-if(Test-Path -LiteralPath $workingDir"Artwork"){
-    $artPath = Join-Path -Path $workingDir -ChildPath Artwork
-} elseif (Test-Path -LiteralPath $workingDir"scans") {
-    $artPath = Join-Path -Path $workingDir -ChildPath Scans
-} elseif (Test-Path -LiteralPath $workingDir"covers") {
-    $artPath = Join-Path -Path $workingDir -ChildPath Covers
-} elseif (Test-Path -LiteralPath $workingDir"art") {
-    $artPath = Join-Path -Path $workingDir -ChildPath Art
-} else {
-    Write-Host -ForegroundColor Red "`nThere is no 'Scans', 'Artwork', 'Art', or 'Covers' folder.`nPress any key to exit..."
-    Start-Waiting
-    Exit
+$artPath = $null
+
+switch ($true) {
+    { Test-Path -LiteralPath "$workingDir\Artwork" }  { $artPath = Join-Path -Path $workingDir -ChildPath "Artwork"; break }
+    { Test-Path -LiteralPath "$workingDir\Artworks" } { $artPath = Join-Path -Path $workingDir -ChildPath "Artworks"; break }
+    { Test-Path -LiteralPath "$workingDir\scans" }    { $artPath = Join-Path -Path $workingDir -ChildPath "Scans"; break }
+    { Test-Path -LiteralPath "$workingDir\covers" }   { $artPath = Join-Path -Path $workingDir -ChildPath "Covers"; break }
+    { Test-Path -LiteralPath "$workingDir\art" }      { $artPath = Join-Path -Path $workingDir -ChildPath "Art"; break }
+    default {
+        Write-Host -ForegroundColor Red "`nThere is no 'Scans', 'Artwork', 'Art', or 'Covers' folder.`nPress any key to exit..."
+        Start-Waiting
+        Exit
+    }
 }
 
 # For tshooting
