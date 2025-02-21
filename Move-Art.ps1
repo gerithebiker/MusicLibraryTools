@@ -64,7 +64,7 @@ function Start-Waiting {
 # For some reason "Unreal Commander" puts a space character at the end of the path, we have to cut it off...
 # If u using the script from command line, or possibly from other commander, you might need to comment out this line
 $workingDir = $workingDir -replace ' ?$'
-write-host "Working Dir: $workingDir"
+# Write-Host "Working Dir: $workingDir"
 $artPath = $null
 
 switch ($true) {

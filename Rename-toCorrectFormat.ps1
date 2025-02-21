@@ -130,13 +130,13 @@ foreach ($fileFormat in $fileFormats) {
         $fileListArray = $fileList -split "(?<=$fileFormat) "
         $usedFileExt = $fileFormat
         $replacePatterns = @(
-            " \(\d\d\d\d Remast.*\.$fileFormat"
-            " \(Recorded.*\.$fileFormat"
-            " \(Digit.*\.$fileFormat"
-            " \(Resto.*\.$fileFormat"
-            " \(Rema.*\.$fileFormat"
-            " \(Arr.*\.$fileFormat"
-            " \(Live.*\.$fileFormat"
+            " \(\d{4} Remast.*$",
+            " \(Recorded.*$",
+            " \(Digit.*$",
+            " \(Resto.*$",
+            " \(Rema.*$",
+            " \(Arr.*$",
+            " \(Live.*$"
         )
         break
     }
@@ -150,14 +150,33 @@ if (-not $fileListArray) {
     exit
 }
 
-# Step 1: Initialize hashtable with oldName => newName pairs
+# Initialize hashtable with oldName => newName pairs
 $renameTable = @{}
 $fileListArray | ForEach-Object { $renameTable[$_] = $_ }
 
 # We need a helper array for looping
 $keysForLoop = $renameTable.Keys | ForEach-Object { $_ } 
 
-# Step 2: Detect and remove repeating patterns
+# Next we remove the (Remastered), (Recorde), and similar texts, those are really unnecessary in a file name
+$keysForLoop | ForEach-Object {
+    $newName = $renameTable[$_]
+
+    # Here we use the previously defined patterns
+    foreach ($pattern in $replacePatterns) {
+        $newName = $newName -replace $pattern, ""
+    }
+
+    # The previous foreach removes the extension, we put it back if missing
+    # There could be cases (for example missing pattern) when the extension is not removed, hence the if structure
+    if (-not $newName.EndsWith(".$usedFileExt")) {
+        $newName = "$newName.$usedFileExt"
+    }
+
+    # Write back the result to the hash table
+    $renameTable[$_] = $newName
+}
+
+# Detect and remove repeating patterns
 $allNewNames = $renameTable.Values
 # Stripping file extensons to avoid incorrect repetition text detection
 $allNewNames = $allNewNames -replace "\.$usedFileExt$", ""
@@ -185,10 +204,7 @@ $keysForLoop | ForEach-Object {
             break 
         }
     }
-    # Next we remove the (Remastered), (Recorde), and similar texts
-    if ($newName -match ($replacePatterns -join "|")) {
-        $newName = $newName -replace ($replacePatterns -join "|"), ".$usedFileExt"
-    }    
+
     # The only thing left is to replace the characters I don't like...
     $newName = $newName -replace ' _ ', '; ' #[char]0xF025 # This is the "space-middledot-space" character
     $newName = $newName -replace ' -', ', ' # I do not like - in the file names, except after the number, so replacing it with a ,
@@ -210,7 +226,7 @@ $keysForLoop | ForEach-Object {
     }
 }
 
-# Step 4: Perform the actual renames
+# Perform the actual renames
 $renameTable.Keys | ForEach-Object {
     $oldPath = Join-Path -Path $workingDir -ChildPath $_
     $newPath = Join-Path -Path $workingDir -ChildPath $renameTable[$_]
@@ -218,6 +234,8 @@ $renameTable.Keys | ForEach-Object {
     Rename-Item -LiteralPath $oldPath -NewName $newPath
     Write-Host "Renamed: $_ -> $($renameTable[$_])" # This print out does not make too much, unless there was something wrong...
 }
+
+& .\Move-Art.ps1 -w $workingDir
 
 Write-Host "Done"
 if($noMatch -gt 0){ # There is a message that the user should read...
