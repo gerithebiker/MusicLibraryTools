@@ -177,13 +177,18 @@ $keysForLoop | ForEach-Object {
 }
 
 # Detect and remove repeating patterns
+$repeatPattern = ''
 $allNewNames = $renameTable.Values
-# Stripping file extensons to avoid incorrect repetition text detection
+
+# Stripping file extensons to avoid incorrect repetition text detection, 
+# but running it only if there are more than one file name given
 $allNewNames = $allNewNames -replace "\.$usedFileExt$", ""
-$repeatPattern = Get-CommonPattern $allNewNames
-if ($repeatPattern -ne '') {
-    $keysForLoop | ForEach-Object {
-        $renameTable[$_] = $renameTable[$_] -replace [regex]::Escape($repeatPattern), '' -replace '^\s+|\s+$'. ''
+if ($renameTable.Count -gt 1) {
+    $repeatPattern = Get-CommonPattern $allNewNames
+    if ($repeatPattern -ne '') {
+        $keysForLoop | ForEach-Object {
+            $renameTable[$_] = $renameTable[$_] -replace [regex]::Escape($repeatPattern), '' -replace '^\s+|\s+$'. ''
+        }
     }
 }
 
@@ -191,7 +196,11 @@ if ($repeatPattern -ne '') {
 $keysForLoop | ForEach-Object { 
 	# Write-Host "working on: $_ " # This line might need for tshooting
     $newName = $renameTable[$_]
-
+    # Replacing leading letters with numbers
+    $newName = $newName -replace '^ ?A','0'
+    $newName = $newName -replace '^ ?B','1'
+    $newName = $newName -replace '^ ?C','2'
+    $newName = $newName -replace '^ ?D','3'
     # Flag to check if a match was found
     $matched = $false
 
