@@ -4,3 +4,4 @@ test*
 *.csv
 *.xls*
 mTools.ini
+Install-TB.ps1
