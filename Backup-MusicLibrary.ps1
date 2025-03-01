@@ -198,7 +198,7 @@ function Convert-ShortcutToUNC {
 #$ScriptVersion = "0.0"
 
 # Path to configuration file
-$configFile = "$env:APPDATA\MusicLibraryTools\SourceDestinationPairs.txt"
+$configFile = "$env:APPDATA\MusicLibraryTools\mTools.ini"
 if (!(Test-Path $configFile)) {Set-ConfigFile} #else {Write-Output "Configuration file $configFile already exists. Proceeding..."}
 # Path to output list file for the .lnk files list
 $outputLnkFileList = "$env:USERPROFILE\Documents\MusicLibraryTools\AllLnkFiles.txt"

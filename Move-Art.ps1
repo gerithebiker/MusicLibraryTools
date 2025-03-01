@@ -72,10 +72,12 @@ switch ($true) {
     { Test-Path -LiteralPath "$workingDir\Artworks" } { $artPath = Join-Path -Path $workingDir -ChildPath "Artworks"; break }
     { Test-Path -LiteralPath "$workingDir\scans" }    { $artPath = Join-Path -Path $workingDir -ChildPath "Scans"; break }
     { Test-Path -LiteralPath "$workingDir\covers" }   { $artPath = Join-Path -Path $workingDir -ChildPath "Covers"; break }
+    { Test-Path -LiteralPath "$workingDir\cover" }    { $artPath = Join-Path -Path $workingDir -ChildPath "Cover"; break }
     { Test-Path -LiteralPath "$workingDir\art" }      { $artPath = Join-Path -Path $workingDir -ChildPath "Art"; break }
+    { Test-Path -LiteralPath "$workingDir\pictures" } { $artPath = Join-Path -Path $workingDir -ChildPath "Pictures"; break }
     default {
         Write-Host -ForegroundColor Red "`nThere is no 'Scans', 'Artwork', 'Art', or 'Covers' folder.`nPress any key to exit..."
-        Start-Waiting
+        # Start-Waiting
         Exit
     }
 }

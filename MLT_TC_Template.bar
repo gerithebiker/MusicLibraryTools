@@ -1,18 +1,18 @@
 button1=
 cmd1=
 param1=
-button2=C:\windows\System32\SHELL32.dll\i=116
+button2=SHELL32.dll,116
 cmd2=%APPDATA%\MusicLibraryTools\Add-PlayLists.ps1
 param2= -s \"%P \"
-button3=C:\windows\System32\SHELL32.dll\i=121
+button3=SHELL32.dll,121
 cmd3=%APPDATA%\MusicLibraryTools\Backup-MusicLibrary.ps1
 param3=
-button4=C:\windows\System32\SHELL32.dll\i=264
+button4=SHELL32.dll,264
 cmd4=%APPDATA%\MusicLibraryTools\Add-RelativeLink.ps1
 param4= -w \"%T \"  -t \"%P%N\ \"
-button5=C:\windows\System32\SHELL32.dll\i=234
+button5=SHELL32.dll,234
 cmd5=%APPDATA%\MusicLibraryTools\Move-Art.ps1
 param5= -w \"%P \"
-button6=C:\windows\System32\SHELL32.dll\i=151
+button6=SHELL32.dll,151
 cmd6=%APPDATA%\MusicLibraryTools\Rename-toCorrectFormat.ps1
 param6= -w \"%P \"  -f \"%S \"
