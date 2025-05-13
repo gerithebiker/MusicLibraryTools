@@ -114,6 +114,7 @@ function Convert-ShortcutToUNC {
         [string]$outputLnkFileList
     )
 
+    
     Get-Content -Path $outputLnkFileList | ForEach-Object {
         $originalLnkPath = $_.Trim()
 
@@ -198,7 +199,8 @@ function Convert-ShortcutToUNC {
 #$ScriptVersion = "0.0"
 
 # Path to configuration file
-$configFile = "$env:APPDATA\MusicLibraryTools\mTools.ini"
+$ScriptFolder = Split-Path -Parent $MyInvocation.MyCommand.Definition
+$configFile = "$ScriptFolder\mTools.ini"
 if (!(Test-Path $configFile)) {Set-ConfigFile} #else {Write-Output "Configuration file $configFile already exists. Proceeding..."}
 # Path to output list file for the .lnk files list
 $outputLnkFileList = "$env:USERPROFILE\Documents\MusicLibraryTools\AllLnkFiles.txt"
@@ -216,11 +218,20 @@ if (-not (Get-Command -Name "robocopy" -ErrorAction SilentlyContinue)) {
 ########################################
 ########################################
 # Process the pairs
-$sourceDestinationPairs = Get-IniSection -IniPath $iniPath -SectionName "sourceDestinationPairs"
-foreach ($pair in $sourceDestinationPairs.GetEnumerator()) {
-    $source, $destination = $pair.Value -split '\|'
-    Write-Host "Processing: $source → $destination"
-    # Add your file/link handling logic here
+$sourceDestinationPairs = Get-IniSection -IniPath $configFile -SectionName "sourceDestinationPairs"
+$backupPairs = @()
+foreach ($key in $sourceDestinationPairs.Keys) {
+    if ($sourceDestinationPairs[$key] -match "^\s*(.+?)\|(.+?)(?:\|Exclude=(.+))?$") {
+        $source = $matches[1].Trim()
+        $destination = $matches[2].Trim()
+        $exclusions = if ($matches[3]) { $matches[3] -split "\*" } else { @() }
+
+        $backupPairs += @{
+            Source      = $source
+            Destination = $destination
+            Exclusions  = $exclusions
+        }
+    }
 }
 ########################################
 ########################################
@@ -231,44 +242,46 @@ if (Test-Path $outputLnkFileList) {
 }
 
 $pathPairs = @{}
-Get-Content -Path $configFile | Where-Object { -not $_.TrimStart().StartsWith("#") } | ForEach-Object {
-    $paths = $_ -split '\|'
-    $sourceBasePath = $paths[0].Trim()
-    $networkBasePath = $paths[1].Trim()
-
-    # Error checking for each path
-    if (!(Test-Path $sourceBasePath)) {
-        Write-Host -NoNewline "The  source  path  does not exist: "
-        Write-Host -ForegroundColor Red $sourceBasePath
-        Write-Host -NoNewline "Please fix the configuration file: "
-        write-host -ForegroundColor Red $configFile
-        Start-Waiting
-        return
-    }
-    if (!(Test-Path $networkBasePath)) {
-        Write-Host -NoNewline "The  network  path does not exist: "
-        Write-Host -ForegroundColor Red $networkBasePath
-        Write-Host -NoNewline "Please fix the configuration file: "
-        write-host -ForegroundColor Red $configFile
-        Start-Waiting
-        return
-    }
-
-    # Add valid paths to the hashtable we use later to step through
-    $pathPairs[$sourceBasePath] = $networkBasePath
-}
 
 # Loop through each line in the configuration file
-$pathPairs.GetEnumerator() | ForEach-Object {
+$backupPairs.GetEnumerator() | ForEach-Object {
     # Split each line into source and destination paths
     # $paths = $_ -split '\|'
-    $sourcePath = $_.Key #$paths[0].Trim()
+    $sourcePath = $_.Source #$paths[0].Trim()
     $sourcePath = $sourcePath + "\"
-    $destinationPath = $_.Value #$paths[1].Trim()
+    $destinationPath = $_.Destination #$paths[1].Trim()
+    $pathPairs[$sourcePath] = $destinationPath
+    $robocopyArgs = @(
+        $sourcePath,        # Source
+        $destinationPath,   # Destination
+        "/S",               # Include subdirectories
+        "/XF", "*.lnk"      # Exclude .lnk files
+    ) 
+
+    $exclusions = @()
+
+    # If exclusions exist in the config, add them
+    if ($_.Exclusions.Count -gt 0) {
+        $exclusions = $_.Exclusions | ForEach-Object { "$_" }
+    }
+    
+    # Automatically exclude "System Volume Information" if the source is a drive root (e.g., "D:\")
+    if ($sourcePath -match "^[A-Z]:\\$") {
+        $exclusions += "System Volume Information"
+    }
+    
+    # Ensure exclusions are formatted correctly
+    if ($exclusions.Count -gt 0) {
+        $robocopyArgs += "/XD"
+        #$exclusions = $exclusions | ForEach-Object { $_ -replace '\{', '`{' -replace '\}', '`}' }
+        $robocopyArgs += $exclusions
+    }
 
     # Run robocopy for each source-destination pair
-    # Write-Output "Copying from $sourcePath to $destinationPath..."
-    Start-Process -FilePath "robocopy.exe" -ArgumentList "`"$sourcePath`" `"$destinationPath`" /S /XF *.lnk /XD `"System Volume Information`" *.lnk" -NoNewWindow -Wait
+    Write-Output "Copying from $sourcePath to $destinationPath, excluded: $exclusions"
+    Write-Output "Command: -FilePath robocopy.exe -ArgumentList $robocopyArgs "
+    #Start-Process -FilePath "robocopy.exe" -ArgumentList $robocopyArgs 
+    & robocopy @robocopyArgs
 
     # Append each .lnk file found to the output list file
     Get-ChildItem -LiteralPath $sourcePath -Filter "*.lnk" -Recurse | ForEach-Object {

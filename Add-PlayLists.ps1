@@ -149,8 +149,9 @@ function TraverseDirectories {
 
     # Recursively traverse each subdirectory and create playlists
     $directories = Get-ChildItem -LiteralPath $rootPath -Directory -Recurse
+    Write-Verbose "Number of directories: $($directories.length)"
     foreach ($directory in $directories) {
-		#if(!$isVerbose){Write-Host "Working on $directory"}
+		Write-Verbose "Working on $directory" 
         CreatePlaylistForDirectory -directoryPath $directory.FullName
     }
 }
@@ -166,11 +167,10 @@ $Global:albums = 0
 $Global:isoAlbums = 0
 
 #-----------------------------------------------------------[Main]------------------------------------------------------------
-$isVerbose = $PSCmdlet.MyInvocation.BoundParameters["Verbose"].IsPresent
-if(!$isVerbose){Write-Host "Running..."}
+Write-Verbose "Running..."
 
 # Next line is only for tshoting
-# Write-Host "Working dir: $startPath" # Uncomment if needed
+Write-Verbose "Working dir: $startPath" # Uncomment if needed
 
 # Starting directory path, if no parameter was given, it takes the current dir
 if(!$startPath){

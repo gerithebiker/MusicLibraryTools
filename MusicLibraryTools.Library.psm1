@@ -204,7 +204,8 @@ function Use-ProgressIndicator {
         [int]$Current,
         [int]$Total,
         [string]$Message,
-        [string]$Prefix = "Processing:"
+        [string]$Prefix = "Processing:",
+        [int]$LinesUp = 0
     )
 
     # Avoid division by zero
@@ -226,10 +227,56 @@ function Use-ProgressIndicator {
         $Message = $Message.Substring(0, $maxTextWidth - 3) + "..."
     }
 
+    if ($LinesUp -gt 0) {
+        $esc = [char]27
+        $upSeq = ($esc + "[1A") * $LinesUp
+        Write-Host "$upSeq" -NoNewline
+    }
+
     # Clear previous line & update progress
     $clearLine = "`r" + (" " * ($consoleWidth - 1)) + "`r"
-    Write-Host "$clearLine`r$progressText $Message" -NoNewline -ForegroundColor Green
+    if($LinesUp -gt 0){
+        Write-Host "$clearLine`r$progressText $Message" -ForegroundColor Green
+    } else {
+        Write-Host "$clearLine`r$progressText $Message" -NoNewline -ForegroundColor Green
+    }
 }
+
+function Use-ProgressIndicator2 {
+    param (
+        [int]$Current,
+        [int]$Total,
+        [string]$Message,
+        [string]$Line2 = "",
+        [string]$Prefix = "Processing:"
+    )
+
+    if ($Total -eq 0) { return }
+
+    $progress = [math]::Floor(($Current / $Total) * 100)
+    $consoleWidth = [console]::WindowWidth
+    $progressText = "$Prefix $Current / $Total ($progress%)"
+    $progressLength = $progressText.Length
+    $maxTextWidth = $consoleWidth - $progressLength - 5
+
+    # Truncate Line1 and Line2 if needed
+    if ($Line1.Length -gt $maxTextWidth) {
+        $Line1 = $Line1.Substring(0, $maxTextWidth - 3) + "..."
+    }
+    if ($Line2.Length -gt $consoleWidth - 5) {
+        $Line2 = $Line2.Substring(0, $consoleWidth - 8) + "..."
+    }
+
+    # Clear previous line(s)
+    $clearLine = "`r" + (" " * ($consoleWidth - 1)) + "`r"
+    Write-Host "$clearLine$progressText $Line1" -NoNewline -ForegroundColor Green
+
+    if ($Line2 -ne "") {
+        Write-Host ""
+        Write-Host (" " * ($progressText.Length + 1) + $Line2) -ForegroundColor DarkGray -NoNewline
+    }
+}
+
 
 function Test-FileLocked {
     param ([string]$FilePath)
@@ -344,3 +391,81 @@ function Get-IniSection {
     return $sectionContent
 }
 
+# Simple log rotation function
+function Start-LogRotation {
+    param (
+        [Parameter(Mandatory = $true)]
+        [string]$logDir,
+        [int]$MaxVersions = 5
+    )
+    $baseLog = Join-Path $logDir "robocopy.log"
+    if (Test-Path $baseLog) {
+        for ($i = $MaxVersions; $i -ge 0; $i--) {
+            $old = $baseLog + ".$i"
+            $new = $baseLog + "." + ($i + 1)
+            if (Test-Path $old) { Rename-Item $old $new -Force }
+        }
+        Rename-Item $baseLog "$baseLog.0" -Force
+    }
+}
+
+# Robocopy builder 
+function Build-RoboCopy {
+    param (
+        [string]$ConfigFile = "$PSScriptRoot\mTools.ini"
+    )
+    
+    # Read INI 
+    $sourceDestPairs = Get-IniSection -FilePath $ConfigFile -Section 'sourceDestinationPairs'
+    $robocopySettings = Get-IniSection -FilePath $ConfigFile -Section 'robocopySettings'
+    
+    $verboseLog = $robocopySettings['verboseLog']
+    if (-not $verboseLog) { $verboseLog = "0" }
+    
+    # Paths 
+    $logDir = Join-Path $PSScriptRoot "logs"
+    $cmdFile = Join-Path $PSScriptRoot "Sync.cmd"
+    $logFile = Join-Path $logDir "robocopy.log"
+    
+    if (-not (Test-Path $logDir)) {
+        New-Item -ItemType Directory -Path $logDir | Out-Null
+    }
+    
+    # Rotate Log 
+    Start-LogRotation -BaseLogFile $logFile -MaxVersions 5
+    
+    # Robocopy switches 
+    $robocopyFlags = "/E /COPY:DAT /R:1 /W:1 /NFL /NDL /NP /LOG+:`"$logFile`""
+    if ($verboseLog -eq "1") { $robocopyFlags += " /TEE /V" }
+    
+    # Create CMD file 
+    "@echo off`r`n" | Set-Content -Path $cmdFile -Encoding ASCII
+    
+    # Verify folders and command generation 
+    foreach ($pairKey in $sourceDestPairs.Keys) {
+        $pair = $sourceDestPairs[$pairKey]
+        $parts = $pair -split '\|'
+        if ($parts.Count -ne 2) { continue }
+    
+        $sourceRoot = $parts[0].TrimEnd('\')
+        $targetRoot = $parts[1].TrimEnd('\')
+    
+        Get-ChildItem $sourceRoot -Directory -Recurse -Force -ErrorAction SilentlyContinue | ForEach-Object {
+            $sourceDir = $_.FullName
+    
+            # valódi fájlok keresése
+            $hasRealFiles = Get-ChildItem $sourceDir -File -Recurse -Force -ErrorAction SilentlyContinue |
+                            Where-Object { $_.Extension -ne ".lnk" }
+    
+            if ($hasRealFiles) {
+                $relative = $sourceDir.Substring($sourceRoot.Length).TrimStart('\')
+                $destDir = Join-Path $targetRoot $relative
+                $cmdLine = "robocopy `"$sourceDir`" `"$destDir`" $robocopyFlags"
+                Add-Content -Path $cmdFile -Value $cmdLine
+            }
+        }
+    }
+    
+    Write-Host "✅ Robocopy batch file generated:"
+    Write-Host "   $cmdFile"    
+}

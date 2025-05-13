@@ -1,7 +1,7 @@
 # Configuration
 $tcButtonTemplate = ".\MLT_TC_Template.bar"
 $tcBarFile = "$env:APPDATA\GHISLER\default.bar"  # Total Commander toolbar file
-$buttonConfigFile = ".\MLT_UC_Buttons.bar"  # Path to the button configuration file
+$ucButtonConfigFile = ".\MLT_UC_Buttons.bar"  # Path to the button configuration file
 $ucBarFile = "$env:APPDATA\Unreal Commander\uncom.bar"  # Unreal Commander bar file
 
 # Function to parse button settings
@@ -169,11 +169,6 @@ function Update-UC {
 Write-Host "Do you want to install toolbars for Total Commander (TC), Unreal Commander (UC), or both? (Enter: TC/UC/both)"
 $userChoice = "TC" #Read-Host "Your choice"
 
-if (-not (Test-Path $buttonConfigFile)) {
-    Write-Error "Button configuration file not found: $buttonConfigFile"
-    exit
-}
-
 # Parse buttons
 $buttons = ConvertFrom-ButtonConfig -filePath $buttonConfigFile
 
@@ -181,7 +176,11 @@ switch ($userChoice.ToLower()) {
     "tc" {
         Update-TC -buttons $buttons -tcBarFile $tcBarFile
     }
-    "uc" {
+    "uc" {        
+        if (-not (Test-Path $ucButtonConfigFile)) {
+            Write-Error "Button configuration file not found: $ucButtonConfigFile"
+            exit
+        }
         Update-UC -buttons $buttons -ucBarFile $ucBarFile
     }
     "both" {
