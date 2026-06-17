@@ -49,6 +49,94 @@ function Start-Waiting {
     }   
 }
 
+function Convert-FromAllCaps {
+    param(
+        [string]$Text
+    )
+
+    $smallWords = @(
+        'a','an','and','as','at',
+        'by',
+        'for','from',
+        'in','into','is',
+        'of','off','on','onto','or',
+        'the','to',
+        'up',
+        'via',
+        'with',
+        'vs','vs.'
+    )
+
+    $ti = [System.Globalization.CultureInfo]::InvariantCulture.TextInfo
+
+    # először normál Title Case
+    $result = $ti.ToTitleCase($Text.ToLowerInvariant())
+
+    # szavak feldolgozása
+    $words = $result -split ' '
+
+    for ($i = 1; $i -lt $words.Count; $i++) {
+
+        # levesszük a végéről az írásjeleket (ha vannak)
+        if ($words[$i] -match '^(.+?)([.,:;!?)]*)$') {
+
+            $word = $matches[1]
+            $punct = $matches[2]
+
+            if ($smallWords -contains $word.ToLowerInvariant()) {
+                $words[$i] = $word.ToLowerInvariant() + $punct
+            }
+        }
+    }
+
+    $result = $words -join ' '
+
+    # Római számok javítása
+    $romanMap = @{
+        'Ii'      = 'II'
+        'Iii'     = 'III'
+        'Iv'      = 'IV'
+        'Vi'      = 'VI'
+        'Vii'     = 'VII'
+        'Viii'    = 'VIII'
+        'Ix'      = 'IX'
+
+        'Xi'      = 'XI'
+        'Xii'     = 'XII'
+        'Xiii'    = 'XIII'
+        'Xiv'     = 'XIV'
+        'Xv'      = 'XV'
+        'Xvi'     = 'XVI'
+        'Xvii'    = 'XVII'
+        'Xviii'   = 'XVIII'
+        'Xix'     = 'XIX'
+
+        'Xx'      = 'XX'
+        'Xxi'     = 'XXI'
+        'Xxii'    = 'XXII'
+        'Xxiii'   = 'XXIII'
+        'Xxiv'    = 'XXIV'
+        'Xxv'     = 'XXV'
+        'Xxvi'    = 'XXVI'
+        'Xxvii'   = 'XXVII'
+        'Xxviii'  = 'XXVIII'
+        'Xxix'    = 'XXIX'
+
+        'Xxx'     = 'XXX'
+    }
+
+    foreach ($key in $romanMap.Keys) {
+        $result = $result -replace "\b$key\b", $romanMap[$key]
+    }
+
+    $result = $result -replace '(\d+)St\b', '$1st'
+    $result = $result -replace '(\d+)Nd\b', '$1nd'
+    $result = $result -replace '(\d+)Rd\b', '$1rd'
+    $result = $result -replace '(\d+)Th\b', '$1th'
+    
+    return $result
+}
+
 function Remove-RepeatingPatterns {
     param (
         [string[]]$FileNames
@@ -224,6 +312,7 @@ $keysForLoop | ForEach-Object {
     $newName = $newName -replace '\[', '('
     $newName = $newName -replace '\]', ')'
     $newName = $newName -replace "gsign", "-"
+    $newName = Convert-FromAllCaps($newName)
     # We put back the new name to the hash table
     $renameTable[$_] = $newName       
 

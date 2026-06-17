@@ -71,12 +71,14 @@ switch ($true) {
     { Test-Path -LiteralPath "$workingDir\Artwork" }  { $artPath = Join-Path -Path $workingDir -ChildPath "Artwork"; break }
     { Test-Path -LiteralPath "$workingDir\Artworks" } { $artPath = Join-Path -Path $workingDir -ChildPath "Artworks"; break }
     { Test-Path -LiteralPath "$workingDir\scans" }    { $artPath = Join-Path -Path $workingDir -ChildPath "Scans"; break }
+    { Test-Path -LiteralPath "$workingDir\scan" }     { $artPath = Join-Path -Path $workingDir -ChildPath "Scan"; break }
     { Test-Path -LiteralPath "$workingDir\covers" }   { $artPath = Join-Path -Path $workingDir -ChildPath "Covers"; break }
     { Test-Path -LiteralPath "$workingDir\cover" }    { $artPath = Join-Path -Path $workingDir -ChildPath "Cover"; break }
     { Test-Path -LiteralPath "$workingDir\art" }      { $artPath = Join-Path -Path $workingDir -ChildPath "Art"; break }
     { Test-Path -LiteralPath "$workingDir\pictures" } { $artPath = Join-Path -Path $workingDir -ChildPath "Pictures"; break }
+    { Test-Path -LiteralPath "$workingDir\pics" } { $artPath = Join-Path -Path $workingDir -ChildPath "Pics"; break }
     default {
-        Write-Host -ForegroundColor Red "`nThere is no 'Scans', 'Artwork', 'Art', or 'Covers' folder.`nPress any key to exit..."
+        Write-Host -ForegroundColor Red "`nThere is no 'Scans', 'Artwork', 'Art', or 'Covers' or 'Art' or 'Picture' or 'Pics' folder.`nPress any key to exit..."
         # Start-Waiting
         Exit
     }
