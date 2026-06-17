@@ -27,6 +27,10 @@
   Creation Date:  2024.12.06
   Purpose/Change: 2025.01.07 - Making ready for sharing
 
+
+  We intentionally use Unicode FULLWIDTH COLON '：'(U+FF1A) instead of ASCII ':'
+  because ':' is illegal in Windows filenames.
+
 .EXAMPLE
     Rename-toCorrectFormat.ps1 -w "C:\myFolder\myMusic" -f "1. Loud Song.flac 2. Quiet Song.flac"
   
@@ -154,6 +158,47 @@ function Remove-RepeatingPatterns {
     return $FileNames
 }
 
+function Split-TrackBaseName {
+    param(
+        [string]$BaseName
+    )
+
+    # Splits only the leading track marker from the title body.
+    # Examples:
+    #   01 - BEETHOVEN： MISSA SOLEMNIS -> Track=01, Title=BEETHOVEN： MISSA SOLEMNIS
+    #   1. Some Song                     -> Track=1,  Title=Some Song
+    #   A Some Song                      -> Track=A,  Title=Some Song
+    if ($BaseName -match '^\s*(?<track>\d{1,3}|[A-D])\s*(?:[-,.]\s*)?(?<title>.+?)\s*$') {
+        return [PSCustomObject]@{
+            HasTrack = $true
+            Track    = $matches['track']
+            Title    = $matches['title']
+        }
+    }
+
+    return [PSCustomObject]@{
+        HasTrack = $false
+        Track    = ''
+        Title    = $BaseName
+    }
+}
+
+function Join-TrackBaseName {
+    param(
+        [Parameter(Mandatory=$true)]$Parts
+    )
+
+    $title = $Parts.Title -replace '^\s+|\s+$', ''
+    $title = $title -replace '^[\s:：,;\-–—]+', ''
+    $title = $title -replace '[\s:：,;\-–—]+$', ''
+
+    if ($Parts.HasTrack) {
+        return "$($Parts.Track) - $title"
+    }
+
+    return $title
+}
+
 function Get-CommonPattern {
     param ([string[]]$Strings)
 
@@ -181,18 +226,21 @@ $patterns = @(
     #    defining what should be done in that case.
     # The 'gsign' is a temporary string, that will be replaced with a dash later, 
     #    this is the easiest way. You can add your own pattern, if this is not enough.
-    @{ Pattern = '(^\d\d)( - )(.*)'; Replace = '$1 gsign $3' }, # this might look weird, but it is needed for to replace 'gsign' with a dash
+    @{ Pattern = '^0?(\d+)-0?(\d{1,3})(\s*-\s*)(.*)'; Replace = '$1$2 gsign $4' }, # this might look weird, but it is needed for to replace 'gsign' with a dash
+    @{ Pattern = '(^\d\d)( - )(.*)'; Replace = '$1 gsign $3' },
     @{ Pattern = '(^\d\d)(, )(.*)'; Replace = '$1 gsign $3' },
     @{ Pattern = '(^\d\d)(\. )(.*)'; Replace = '$1 gsign $3' },
     @{ Pattern = '(^\d\d)(\.)(.*)'; Replace = '$1 gsign $3' },
     @{ Pattern = '(^\d)(\. )(.*)'; Replace = '0$1 gsign $3' },
     @{ Pattern = '(^\d\d\d)(\. )(.*)'; Replace = '$1 gsign $3' },
-    @{ Pattern = '(^\d\d\d)( - )(.*)'; Replace = '$1 gsign $3' }, # this might look weird, but it is needed for to replace 'gsign' with a dash
+    @{ Pattern = '(^\d\d\d)( - )(.*)'; Replace = '$1 gsign $3' },
     @{ Pattern = '(^\d\d)( )(\w.*)'; Replace = '$1 gsign $3' }, 
     @{ Pattern = '(^\d\d)(-)(.*)'; Replace = '$1 gsign $3' },
     @{ Pattern = '(^\d)( - )(.*)'; Replace = '0$1 gsign $3' },
     @{ Pattern = '(^\d)( )(\w.*)'; Replace = '0$1 gsign $3' }
 )
+
+$PrettyColon     = [char]0xFF1A   # ：
 
 #--------------------------------------------------------------[Main]--------------------------------------------------------------
 # Unreal Commander passes the parameters with a space at the end. We cut that off,
@@ -265,17 +313,43 @@ $keysForLoop | ForEach-Object {
 }
 
 # Detect and remove repeating patterns
+# Important: repeated text is detected only in the title part, not in the whole filename.
+# This prevents the track separator (" - ") and the file extension from being removed accidentally.
 $repeatPattern = ''
-$allNewNames = $renameTable.Values
 
-# Stripping file extensons to avoid incorrect repetition text detection, 
-# but running it only if there are more than one file name given
-$allNewNames = $allNewNames -replace "\.$usedFileExt$", ""
 if ($renameTable.Count -gt 1) {
-    $repeatPattern = Get-CommonPattern $allNewNames
+    $allTitleParts = @()
+
+    $keysForLoop | ForEach-Object {
+        $currentName = $renameTable[$_]
+        $baseName = [System.IO.Path]::GetFileNameWithoutExtension($currentName)
+        $parts = Split-TrackBaseName $baseName
+        $allTitleParts += $parts.Title
+    }
+
+    $repeatPattern = Get-CommonPattern $allTitleParts
+
+    if ($repeatPattern -match '^(.*?[：:])\s*') {
+        $repeatPattern = $matches[1]
+    }
+
     if ($repeatPattern -ne '') {
         $keysForLoop | ForEach-Object {
-            $renameTable[$_] = $renameTable[$_] -replace [regex]::Escape($repeatPattern), '' -replace '^\s+|\s+$'. ''
+            $currentName = $renameTable[$_]
+            $baseName = [System.IO.Path]::GetFileNameWithoutExtension($currentName)
+            $extension = [System.IO.Path]::GetExtension($currentName).ToLowerInvariant()
+
+            $parts = Split-TrackBaseName $baseName
+            # Ha van composer/prefix separator, csak addig törlünk.
+            if ($parts.Title -match '^[^：:]+[：:]\s*(.+)$') {
+                $parts.Title = $matches[1]
+            }
+            else {
+                $parts.Title = $parts.Title -replace [regex]::Escape($repeatPattern), ''
+            }
+            $newBaseName = Join-TrackBaseName $parts
+
+            $renameTable[$_] = "$newBaseName$extension"
         }
     }
 }
@@ -283,7 +357,10 @@ if ($renameTable.Count -gt 1) {
 # We step through the files, and rename them
 $keysForLoop | ForEach-Object { 
 	# Write-Host "working on: $_ " # This line might need for tshooting
-    $newName = $renameTable[$_]
+    $currentName = $renameTable[$_]
+    $extension = [System.IO.Path]::GetExtension($currentName).ToLowerInvariant()
+    $newName = [System.IO.Path]::GetFileNameWithoutExtension($currentName)
+
     # Replacing leading letters with numbers
     $newName = $newName -replace '^ ?A','0'
     $newName = $newName -replace '^ ?B','1'
@@ -313,13 +390,17 @@ $keysForLoop | ForEach-Object {
     $newName = $newName -replace '\]', ')'
     $newName = $newName -replace "gsign", "-"
     $newName = Convert-FromAllCaps($newName)
+    $newName = $newName -replace '\sMov\.+\b', ' Movement'
+    $newName = $newName -replace '\.+$', ''
+    $newName = $newName -replace ';\s*', "$PrettyColon"
+
     # We put back the new name to the hash table
-    $renameTable[$_] = $newName       
+    $renameTable[$_] = "$newName$extension"       
 
     # Handle no match case in the beginning of the filename
     if (-not $matched) {
         Write-Host -ForegroundColor Red -NoNewline "No matching digits found for file "
-        Write-Host -ForegroundColor Yellow "$newName"
+        Write-Host -ForegroundColor Yellow "$newName$extension"
         $noMatch++
     }
 }
