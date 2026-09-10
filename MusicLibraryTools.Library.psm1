@@ -469,3 +469,98 @@ function Build-RoboCopy {
     Write-Host "✅ Robocopy batch file generated:"
     Write-Host "   $cmdFile"    
 }
+
+function ConvertFrom-IniValue {
+    param (
+        [AllowEmptyString()]
+        [string]$Value
+    )
+
+    if ($null -eq $Value) {
+        return $null
+    }
+
+    $valueToProcess = $Value.Trim()
+
+    if (
+        $valueToProcess.Length -ge 2 -and
+        $valueToProcess.StartsWith('"') -and
+        $valueToProcess.EndsWith('"')
+    ) {
+        return $valueToProcess.Substring(
+            1,
+            $valueToProcess.Length - 2
+        )
+    }
+
+    return $valueToProcess
+}
+
+function Get-IniSection {
+    param (
+        [Parameter(Mandatory = $true)]
+        [string]$IniPath,
+
+        [Parameter(Mandatory = $true)]
+        [string]$SectionName
+    )
+
+    if (-not (Test-Path -LiteralPath $IniPath -PathType Leaf)) {
+        throw "INI file not found at: $IniPath"
+    }
+
+    $iniContent = Get-Content -LiteralPath $IniPath
+    $insideSection = $false
+    $sectionContent = [ordered]@{}
+
+    foreach ($line in $iniContent) {
+
+        if ($line -match '^\s*\[(?<Section>[^\]]+)\]\s*$') {
+            if ($Matches.Section -ieq $SectionName) {
+                $insideSection = $true
+                continue
+            }
+
+            if ($insideSection) {
+                break
+            }
+
+            continue
+        }
+
+        if (
+            $insideSection -and
+            $line -notmatch '^\s*(?:$|[;#])'
+        ) {
+            if ($line -match '^\s*(?<Key>[^=]+?)\s*=(?<Value>.*)$') {
+                $key = $Matches.Key.Trim()
+                $value = ConvertFrom-IniValue -Value $Matches.Value
+
+                $sectionContent[$key] = $value
+            }
+        }
+    }
+
+    return $sectionContent
+}
+
+function Test-IsExcludedDirectory {
+    param (
+        [Parameter(Mandatory = $true)]
+        [string]$DirectoryName,
+
+        [AllowEmptyCollection()]
+        [string[]]$Patterns
+    )
+
+    foreach ($pattern in $Patterns) {
+        if (
+            -not [string]::IsNullOrWhiteSpace($pattern) -and
+            $DirectoryName -like $pattern
+        ) {
+            return $true
+        }
+    }
+
+    return $false
+}
